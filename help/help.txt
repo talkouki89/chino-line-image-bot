@@ -1,0 +1,43 @@
+ChinoBot 2.0｜圖搜指令
+
+【回覆圖片搜尋】
+請「回覆一張圖片」後輸入：
+
+回覆搜1  SauceNAO
+回覆搜2  Ascii2D
+回覆搜3  TraceMoe
+回覆搜4  E-Hentai
+回覆搜5  ExHentai
+回覆搜6  Copyseeker
+回覆搜7  Yandex
+回覆搜8  Iqdb
+回覆搜9  AnimeTrace
+
+【X / Twitter】
+x;URL     下載 URL 內的圖片或影片
+回覆搜x   回覆 URL 後下載圖片或影片
+
+【圖床】
+#圖片上傳  回覆圖片後上傳到 Freeimage.host，回傳圖片網址
+
+【隨機圖片】
+隨機圖       一般隨機圖
+r18色圖      R18 隨機圖
+tag色圖 標籤  依 tag 搜圖，例如：tag色圖 貓耳
+
+【nHentai】
+n:數字     解析作品資訊與前五頁連結
+n:popular  顯示 Popular Now 排名（可右滑）
+
+【作品解析】
+w:數字     解析紳士漫畫作品
+c:數字     解析禁漫天堂作品
+p:數字     解析 Pixiv 作品
+
+【建議用途】
+1 / 2 / 6 / 7 / 8：圖片來源
+3：動畫番劇截圖
+9：動畫角色辨識
+4 / 5：E-Hentai / ExHentai
+
+作者：智乃

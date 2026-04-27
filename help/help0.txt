@@ -1,0 +1,39 @@
+ChinoBot 2.0｜免費功能
+
+免費使用者可使用以下圖搜：
+
+回覆搜1  SauceNAO
+回覆搜2  Ascii2D
+回覆搜3  TraceMoe
+回覆搜4  E-Hentai
+回覆搜5  ExHentai
+回覆搜6  Copyseeker
+回覆搜7  Yandex
+回覆搜8  Iqdb
+回覆搜9  AnimeTrace
+
+其他：
+#圖片上傳 回覆圖片後上傳到 Freeimage.host，回傳圖片網址
+隨機圖    一般隨機圖
+r18色圖   R18 隨機圖
+tag色圖 標籤  依 tag 搜圖
+n:數字   解析 nHentai 作品資訊與前五頁連結
+n:popular 顯示 nHentai Popular Now 排名（可右滑）
+w:數字   解析紳士漫畫作品
+c:數字   解析禁漫天堂作品
+p:數字   解析 Pixiv 作品
+
+【使用方式】
+1. 回覆一張圖片
+2. 輸入上方其中一個指令
+3. 等待搜尋結果
+
+【小提醒】
+1 / 2 / 6 / 7 / 8：適合搜圖片來源
+3：適合搜動畫截圖
+9：適合辨識動畫角色
+4 / 5：適合搜本子來源
+
+LINE 會壓縮圖片，圖片太糊時可能搜不到。
+
+作者：智乃

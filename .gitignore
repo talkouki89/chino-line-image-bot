@@ -1,0 +1,26 @@
+.env
+.codex/
+cookies.txt
+errorLog.txt
+*.pyc
+__pycache__/
+Crt/
+CHRLINE/.data/
+CHRLINE/.refreshToken/
+CHRLINE/.e2eeKeys/
+CHRLINE/.e2eePublicKeys/
+CHRLINE/**/*.crt
+SauceNAO.jpg
+Ascii2D.jpg
+TraceMoe.jpg
+EHentai.jpg
+ExHentai.jpg
+Copyseeker.jpg
+Yandex.jpg
+Iqdb.jpg
+*.mp4
+
+# Runtime bot state / private LINE data
+json/ban.json
+json/temp.json
+tag/*.json

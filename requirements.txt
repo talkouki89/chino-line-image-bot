@@ -1,0 +1,24 @@
+PicImageSearch @ git+https://github.com/kitUIN/PicImageSearch.git
+lxml>=6.1.0,<6.1.1
+pyquery>=2.0.1
+yt-dlp
+python-dotenv
+loguru
+jmcomic
+requests
+rsa
+pytz
+httpx[http2]
+six
+tornado
+twisted
+zope.interface
+pycryptodome==3.9.8
+xxhash
+python-axolotl-curve25519
+cryptography
+thrift
+qrcode
+Image
+rich
+h2>=3.2.0
