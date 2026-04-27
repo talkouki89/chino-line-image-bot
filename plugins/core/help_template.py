@@ -35,15 +35,12 @@ def build_help_flex(flags, is_admin=False):
         "抽圖 / 隨機圖 / r18色圖",
         "#圖片上傳 / 誰標我 / 清空標註",
         "",
-        "GitHub",
-        GITHUB_URL,
-        "",
         "功能狀態",
         feature_status_text(flags),
     ]
     if is_admin:
         lines.extend(["", "管理", "功能設定 / 功能切換 <key> / pic:reb"])
-    return simple_flex("ChinoBot 指令說明", lines)
+    return simple_flex("ChinoBot 指令說明", lines, footer_buttons=[uri_button("開啟 GitHub", GITHUB_URL)])
 
 
 def build_settings_flex(flags):
@@ -187,11 +184,11 @@ def section_lines(flags, title_text, keys):
     return lines
 
 
-def simple_flex(alt_text, lines):
+def simple_flex(alt_text, lines, footer_buttons=None):
     contents = [title(lines[0])]
     for line in lines[1:]:
         contents.append(text(line or " ", "#555555"))
-    return {
+    bubble = {
         "type": "flex",
         "altText": alt_text,
         "contents": {
@@ -203,6 +200,13 @@ def simple_flex(alt_text, lines):
             },
         },
     }
+    if footer_buttons:
+        bubble["contents"]["footer"] = {
+            "type": "box",
+            "layout": "vertical",
+            "contents": footer_buttons,
+        }
+    return bubble
 
 
 def feature_status_text(flags):
