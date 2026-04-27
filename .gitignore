@@ -9,6 +9,7 @@ CHRLINE/.data/
 CHRLINE/.refreshToken/
 CHRLINE/.e2eeKeys/
 CHRLINE/.e2eePublicKeys/
+CHRLINE/.e2eeGroupKeys/
 CHRLINE/**/*.crt
 SauceNAO.jpg
 Ascii2D.jpg
@@ -23,4 +24,5 @@ Iqdb.jpg
 # Runtime bot state / private LINE data
 json/ban.json
 json/temp.json
+json/features.json
 tag/*.json

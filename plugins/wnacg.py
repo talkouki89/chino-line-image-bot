@@ -23,6 +23,7 @@ from plugins.core.gallery_template import (
 
 WNACG_HOME = "https://www.wnacg.com/"
 WNACG_ALBUM_URL = "https://www.wnacg.com/photos-index-aid-{album_id}.html"
+FEATURE_KEY = "wnacg"
 
 
 def handle(ctx):

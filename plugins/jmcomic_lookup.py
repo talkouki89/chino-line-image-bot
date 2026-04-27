@@ -17,6 +17,7 @@ except Exception:  # pragma: no cover - optional dependency fallback
 
 
 JM_ALBUM_URL = "https://18comic.vip/album/{album_id}/"
+FEATURE_KEY = "jmcomic"
 
 
 def handle(ctx):

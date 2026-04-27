@@ -18,6 +18,7 @@ MAX_TAGS = 18
 MAX_PAGE_LINKS = 5
 MAX_POPULAR_ITEMS = 10
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+FEATURE_KEY = "nhentai"
 
 
 def handle(ctx):

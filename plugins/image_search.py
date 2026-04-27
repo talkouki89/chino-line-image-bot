@@ -16,8 +16,21 @@ from PicImageSearch.sync import (
 from plugins.core.template import Chino
 
 
+FEATURE_KEY = "image_search"
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
+
+ENGINE_FEATURE_KEYS = {
+    "SauceNAO": "engine_saucenao",
+    "Ascii2D": "engine_ascii2d",
+    "TraceMoe": "engine_tracemoe",
+    "EHentai": "engine_ehentai",
+    "ExHentai": "engine_exhentai",
+    "Copyseeker": "engine_copyseeker",
+    "Yandex": "engine_yandex",
+    "Iqdb": "engine_iqdb",
+    "AnimeTrace": "engine_animetrace",
+}
 
 SEARCH_COMMANDS = {
     "回覆搜1": ("SauceNAO.jpg", "SauceNAO", "SauceNAO"),
@@ -51,6 +64,9 @@ def handle(ctx):
 
 def handle_reply_search(ctx):
     save_name, engine_label, engine = SEARCH_COMMANDS[ctx.cmd]
+    if not is_engine_enabled(ctx, engine, engine_label):
+        return True
+
     related_message_id = getattr(ctx.msg, "relatedMessageId", None)
     if not related_message_id:
         ctx.reply("請回覆一張圖片再使用圖搜指令。")
@@ -60,14 +76,15 @@ def handle_reply_search(ctx):
         return True
 
     try:
-        ctx.cl.downloadObjectMsg(related_message_id, saveAs=save_name)
+        download_reply_image(ctx, related_message_id, save_name)
         result_text, video_url = search_as_text(engine, save_name)
         ctx.cl.relatedMessage(ctx.to, result_text, ctx.msg_id)
         if video_url:
             ctx.cl.sendVideoWithURL(ctx.to, str(video_url))
     except Exception as exc:
         ctx.log_error(exc)
-        ctx.cl.relatedMessage(ctx.to, "搜尋失敗,請換個方式或重新搜尋", ctx.msg_id)
+        message = user_facing_error(exc) or "搜尋失敗,請換個方式或重新搜尋"
+        ctx.cl.relatedMessage(ctx.to, message, ctx.msg_id)
     finally:
         safe_remove(save_name)
 
@@ -85,13 +102,17 @@ def handle_template_search(ctx):
         return True
 
     engine = TEMPLATE_COMMANDS[ctx.cmd]
+    if not is_engine_enabled(ctx, engine, engine):
+        return True
+
     save_name = SEARCH_COMMANDS[f"回覆搜{template_engine_number(engine)}"][0]
     try:
-        ctx.cl.downloadObjectMsg(related_message_id, saveAs=save_name)
+        download_reply_image(ctx, related_message_id, save_name)
         send_template_result(ctx, engine, save_name)
     except Exception as exc:
         ctx.log_error(exc)
-        ctx.cl.relatedMessage(ctx.to, "搜尋失敗,請換個方式或重新搜尋", ctx.msg_id)
+        message = user_facing_error(exc) or "搜尋失敗,請換個方式或重新搜尋"
+        ctx.cl.relatedMessage(ctx.to, message, ctx.msg_id)
     finally:
         safe_remove(save_name)
     return True
@@ -116,6 +137,14 @@ def finish_search(ctx):
             "剩餘使用次數:{day}".format(day=ctx.settings["days"]),
             ctx.msg_id,
         )
+
+
+def is_engine_enabled(ctx, engine, label):
+    feature_key = ENGINE_FEATURE_KEYS.get(engine)
+    if feature_key and not ctx.is_feature_enabled(feature_key):
+        ctx.reply(f"{label} 目前已被管理員關閉。")
+        return False
+    return True
 
 
 def search_as_text(engine, image_path):
@@ -374,7 +403,50 @@ def env_bool(name, default=False):
 
 
 def safe_remove(path):
+    for _ in range(20):
+        try:
+            os.remove(path)
+            return
+        except FileNotFoundError:
+            return
+        except PermissionError:
+            import time
+            time.sleep(0.25)
+
+
+def download_reply_image(ctx, related_message_id, save_name):
     try:
-        os.remove(path)
-    except FileNotFoundError:
-        pass
+        return ctx.cl.downloadObjectMsg(related_message_id, saveAs=save_name, objFrom=ctx.to)
+    except Exception as exc:
+        if is_private_e2ee_image_context(ctx, exc):
+            raise RuntimeError(
+                "私訊 E2EE 圖片目前無法下載原圖。請改到群組使用，或在該聊天室關閉 Letter Sealing/E2EE 後重傳圖片。"
+            ) from exc
+        if is_openchat_download_404(ctx, exc):
+            raise RuntimeError("圖片下載失敗：此聊天室可能是 OpenChat，已改用聊天室 ID 判斷下載路徑；請重傳圖片後再試一次。") from exc
+        raise
+
+
+def is_private_e2ee_image_context(ctx, exc):
+    text = str(exc)
+    if "Invalid response code: 404" not in text and "Download failed" not in text:
+        return False
+    if getattr(ctx.msg, "toType", None) != 0:
+        return False
+    return True
+
+
+def is_openchat_download_404(ctx, exc):
+    text = str(exc)
+    return "Invalid response code: 404" in text and "/talk/m/" in text and getattr(ctx.msg, "toType", None) != 0
+
+
+def user_facing_error(exc):
+    text = str(exc)
+    prefixes = (
+        "私訊 E2EE 圖片目前無法下載原圖",
+        "圖片下載失敗：",
+    )
+    if text.startswith(prefixes):
+        return text
+    return ""

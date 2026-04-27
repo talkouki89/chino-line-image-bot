@@ -4,6 +4,7 @@ import tempfile
 from plugins.core.freeimage import FreeimageHost
 
 
+FEATURE_KEY = "freeimage_upload"
 COMMANDS = {"#圖片上傳", "圖片上傳", "#上傳圖片"}
 
 
@@ -18,7 +19,14 @@ def handle(ctx):
 
     tmp_path = make_temp_path(ctx.sender)
     try:
-        ctx.cl.downloadObjectMsg(related_message_id, saveAs=tmp_path)
+        try:
+            ctx.cl.downloadObjectMsg(related_message_id, saveAs=tmp_path, objFrom=ctx.to)
+        except Exception as exc:
+            if getattr(ctx.msg, "toType", None) == 0:
+                raise RuntimeError("私訊 E2EE 圖片可能無法下載，請改到群組或關閉 E2EE 後重傳。") from exc
+            if "Invalid response code: 404" in str(exc) and "/talk/m/" in str(exc):
+                raise RuntimeError("圖片下載失敗：此聊天室可能是 OpenChat，已改用聊天室 ID 判斷下載路徑；請重傳圖片後再試一次。") from exc
+            raise
         result = FreeimageHost(ctx.cl).upload(
             tmp_path,
             title=f"LINE upload by {ctx.sender}",
@@ -31,7 +39,10 @@ def handle(ctx):
         ctx.cl.relatedMessage(ctx.to, f"圖片上傳完成：\n{link}", ctx.msg_id)
     except Exception as exc:
         ctx.log_error(exc)
-        ctx.reply("圖片上傳失敗，請確認已設定 FREEIMAGE_API_KEY。")
+        if "私訊 E2EE" in str(exc) or str(exc).startswith("圖片下載失敗："):
+            ctx.reply(str(exc))
+        else:
+            ctx.reply("圖片上傳失敗，請確認已設定 FREEIMAGE_API_KEY。")
     finally:
         safe_remove(tmp_path)
     return True
@@ -43,7 +54,12 @@ def make_temp_path(sender):
 
 
 def safe_remove(path):
-    try:
-        os.remove(path)
-    except FileNotFoundError:
-        pass
+    for _ in range(20):
+        try:
+            os.remove(path)
+            return
+        except FileNotFoundError:
+            return
+        except PermissionError:
+            import time
+            time.sleep(0.25)

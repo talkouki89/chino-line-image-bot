@@ -1,0 +1,20 @@
+{
+    "auto_friend": true,
+    "engine_animetrace": true,
+    "engine_ascii2d": true,
+    "engine_copyseeker": true,
+    "engine_ehentai": true,
+    "engine_exhentai": true,
+    "engine_iqdb": true,
+    "engine_saucenao": true,
+    "engine_tracemoe": true,
+    "engine_yandex": true,
+    "freeimage_upload": true,
+    "help_templates": true,
+    "image_draw_template": true,
+    "jmcomic": true,
+    "media_tools": true,
+    "nhentai": true,
+    "pixiv": true,
+    "wnacg": true
+}

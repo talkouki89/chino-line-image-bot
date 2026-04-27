@@ -12,6 +12,13 @@ routing behavior.
 # LINE compatibility layer.
 from line_api_compat import LINE, OEPoll
 from plugin_loader import PluginManager, make_context
+from plugins.core.features import (
+    FEATURE_INDEX,
+    is_enabled as feature_is_enabled,
+    load_feature_flags,
+    toggle_feature,
+)
+from plugins.core.help_template import GITHUB_URL, build_help_flex, build_settings_flex
 from dotenv import load_dotenv
 from datetime import datetime
 import threading
@@ -33,6 +40,7 @@ DATA_DIR = os.path.join(ROOT_DIR, "json")
 TAG_DIR = os.path.join(ROOT_DIR, "tag")
 PLUGIN_DIR = os.path.join(ROOT_DIR, "plugins")
 ERROR_LOG = os.path.join(ROOT_DIR, "errorLog.txt")
+FEATURE_FLAGS_PATH = os.path.join(DATA_DIR, "features.json")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(TAG_DIR, exist_ok=True)
@@ -87,6 +95,7 @@ cl = LINE(account, password)
 # Persistent bot state.
 settings = load_json(os.path.join(DATA_DIR, "temp.json"), {"days": 0, "sc": 0})
 ban = load_json(os.path.join(DATA_DIR, "ban.json"), {"admin": []})
+feature_flags = load_feature_flags(FEATURE_FLAGS_PATH)
 
 # Shared service objects.
 oepoll = OEPoll(cl)
@@ -100,9 +109,14 @@ plugins = PluginManager(PLUGIN_DIR, enabled=HOT_RELOAD_PLUGINS)
 if botcreator not in ban["admin"]:
     ban["admin"].append(botcreator)
 
-a1 = cl.profile
-a1.displayName = "智乃𝓒𝓱𝓲𝓷𝓸𝓑𝓸𝓽"
-cl.updateProfile(a1)
+BOT_DISPLAY_NAME = "智乃搜圖機器人🍥"
+BOT_STATUS_MESSAGE = f"使用請輸入 圖搜說明\nGitHub: {GITHUB_URL}\n作者: 智乃妹妹"
+
+try:
+    cl.updateProfileAttribute(2, BOT_DISPLAY_NAME)
+    cl.updateProfileAttribute(16, BOT_STATUS_MESSAGE)
+except Exception as exc:
+    print(f"Profile update failed: {exc}")
 
 # General utilities.
 def color():
@@ -129,6 +143,21 @@ def backupData():
     dump_json(os.path.join(DATA_DIR, "ban.json"), ban)
     return True
 
+
+def is_feature_enabled(key):
+    """Return whether a bot feature is enabled."""
+    return feature_is_enabled(feature_flags, key)
+
+
+def toggle_feature_command(key):
+    """Toggle a feature and persist it to json/features.json."""
+    return toggle_feature(FEATURE_FLAGS_PATH, feature_flags, key)
+
+
+def is_manager(sender):
+    """Return True when sender can manage bot settings."""
+    return sender in ban["admin"] or (botcreator and sender in botcreator)
+
 def UpgradePicapi():
     """Upgrade PicImageSearch from GitHub without restarting LINE login first."""
     print("更新api中")
@@ -153,13 +182,87 @@ def ChinoRestart():
     
 def sendTemplate(to, data):
     """Send a LIFF message through the configured LIFF id."""
-    return cl.sendLiff(to, data, liffId='1660845055-GMJrEOVY')
+    result = cl.sendLiff(to, data, liffId='1660845055-GMJrEOVY')
+    if is_liff_error(result):
+        alt_text = template_alt_text(data)
+        logError(f"LIFF template send failed: {result}")
+        fallback = template_fallback_text(data)
+        cl.sendMessage(to, fallback or f"{alt_text}\n\n模板傳送失敗，請查看 errorLog.txt。")
+    return result
 
 
 def sendFlex(to, alt, flex):
     """Wrap a Flex bubble/container and send it through LIFF."""
     data = {"type": "flex", "altText": alt, "contents": flex}
     sendTemplate(to, data)    
+
+
+def is_liff_error(result):
+    """CHRLINE sendLiff returns response text instead of raising on API errors."""
+    if isinstance(result, Exception):
+        return True
+    if not isinstance(result, str):
+        return False
+    normalized = result.strip()
+    if normalized in ("", "{}", "[]", "null"):
+        return False
+    lowered = normalized.lower()
+    return any(token in lowered for token in ("error", "invalid", "failed", "message", "details"))
+
+
+def template_alt_text(data):
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict) and item.get("altText"):
+                return item["altText"]
+        return "模板訊息"
+    if isinstance(data, dict):
+        return data.get("altText") or data.get("text") or "模板訊息"
+    return "模板訊息"
+
+
+def template_fallback_text(data):
+    messages = data if isinstance(data, list) else [data]
+    lines = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        if message.get("type") == "text":
+            lines.append(str(message.get("text", "")))
+            continue
+        if message.get("type") == "flex":
+            alt_text = message.get("altText")
+            if alt_text:
+                lines.append(f"【{alt_text}】")
+            lines.extend(extract_flex_text(message.get("contents")))
+    return "\n".join(line for line in lines if line).strip()
+
+
+def extract_flex_text(node):
+    if isinstance(node, list):
+        values = []
+        for item in node:
+            values.extend(extract_flex_text(item))
+        return values
+    if not isinstance(node, dict):
+        return []
+    values = []
+    if node.get("type") == "text" and node.get("text"):
+        values.append(str(node["text"]))
+    for key in ("contents", "body", "hero", "footer", "header"):
+        if key in node:
+            values.extend(extract_flex_text(node[key]))
+    return values
+
+
+def build_auto_friend_message():
+    """Message sent when a user adds the bot as a friend."""
+    return (
+        "感謝您的加入\n\n"
+        f"本專案 GitHub：{GITHUB_URL}\n"
+        "有遇到 bug 可以提交 issues。\n"
+        "有新功能或想加的功能也可以提交 PR。"
+    )
 
 def Runtime(secs):
     """Format process uptime for the ren command."""
@@ -262,6 +365,8 @@ def build_plugin_context(op, msg, text, cmd, to, sender, receiver, msg_id):
         send_flex=sendFlex,
         backup=backupData,
         log_error=logError,
+        feature_flags=feature_flags,
+        is_feature_enabled=is_feature_enabled,
     )
                                    
 # txt指令表
@@ -292,6 +397,16 @@ def PicBot(op):
     a LINE re-login.
     """
     try:
+        if op.type == 5 and is_feature_enabled("auto_friend"):
+            user_mid = get_object_value(op, "param1", default=None)
+            if user_mid and user_mid != clMID:
+                try:
+                    cl.findAndAddContactsByMid(user_mid)
+                except Exception as exc:
+                    logError(f"auto friend add failed: {exc}")
+                cl.sendMessage(user_mid, build_auto_friend_message())
+                return
+
         if op.type == 13 or op.type == 124:
             contact1 = cl.getContact(op.param2)
             group = cl.getChats(op.param1)
@@ -367,6 +482,24 @@ def PicBot(op):
                     with open(tag_file, "w", encoding="utf-8") as f:
                         json.dump(who_mark_me, f, sort_keys=True, indent=4, ensure_ascii=False)                                                  
             plugin_context = build_plugin_context(op, msg, text, cmd, to, sender, receiver, msg_id)
+            if cmd in {"功能設定", "功能開關", "功能列表"}:
+                if is_manager(sender):
+                    sendTemplate(to, build_settings_flex(feature_flags))
+                else:
+                    cl.relatedMessage(to, "此功能只有管理員可以使用。", op.message.id)
+                return
+            if cmd.startswith("功能切換 "):
+                if not is_manager(sender):
+                    cl.relatedMessage(to, "此功能只有管理員可以使用。", op.message.id)
+                    return
+                feature_key = text.split(None, 1)[1].strip() if text and len(text.split(None, 1)) == 2 else ""
+                if feature_key not in FEATURE_INDEX:
+                    cl.relatedMessage(to, f"找不到功能：{feature_key}", op.message.id)
+                    return
+                enabled = toggle_feature_command(feature_key)
+                state = "開啟" if enabled else "關閉"
+                cl.relatedMessage(to, f"{FEATURE_INDEX[feature_key]['name']} 已{state}", op.message.id)
+                return
             if plugins.dispatch(plugin_context):
                 # A hot-reload plugin handled this message. Stop here so built-in
                 # command branches do not also process the same text.
@@ -450,7 +583,7 @@ def PicBot(op):
                             cl.getContact(txt).displayName))
                 # 少數重要功能
                 elif cmd == 'pic:help':
-                    cl.relatedMessage(to, help1(), op.message.id)
+                    sendTemplate(to, build_help_flex(feature_flags, is_admin=True))
                 elif cmd == '更新api':
                     cl.relatedMessage(to, "正在更新圖搜api....", op.message.id)
                     UpgradePicapi()   
@@ -652,28 +785,11 @@ def PicBot(op):
             if sender in sender:
                 # 指令表txt版本
                 if cmd == '圖搜說明':
-                    if sender in ban["admin"]:
-                        data = {
-                            "type": "text",
-                            "text": help(),
-                            "sentBy": {
-                                "label": "👈這是Pekora 作者:智乃妹妹",
-                                "iconUrl": "https://s2.loli.net/2023/01/17/jUPcWoe4RE96ZmS.jpg",
-                                "linkUrl": "https://line.me/R/ti/p/~talkouki"
-                            }
-                        }   
-                        sendTemplate(to, data)                    
-                    elif sender in sender:
-                        data = {
-                            "type": "text",
-                            "text": help0(),
-                            "sentBy": {
-                                "label": "👈這是Pekora 作者:智乃妹妹",
-                                "iconUrl": "https://s2.loli.net/2023/01/17/jUPcWoe4RE96ZmS.jpg",
-                                "linkUrl": "https://line.me/R/ti/p/~talkouki"
-                            }
-                        }   
-                        sendTemplate(to, data)                         
+                    if not is_feature_enabled("help_templates"):
+                        cl.relatedMessage(to, "Help 模板目前已關閉。管理員可輸入「功能設定」重新開啟。", op.message.id)
+                        return
+                    sendTemplate(to, build_help_flex(feature_flags, is_admin=sender in ban["admin"]))
+                    if sender not in ban["admin"]:
                         cl.relatedMessage(to, "剩餘使用次數:{day}".format(
                             day=settings["days"]), op.message.id)
     except Exception as e:

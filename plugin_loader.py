@@ -23,6 +23,10 @@ class PluginManager:
             module = self._load_if_changed(path)
             if module is None or not hasattr(module, "handle"):
                 continue
+            feature_key = getattr(module, "FEATURE_KEY", None)
+            is_feature_enabled = getattr(context, "is_feature_enabled", None)
+            if feature_key and is_feature_enabled and not is_feature_enabled(feature_key):
+                continue
             try:
                 if module.handle(context):
                     handled = True

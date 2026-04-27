@@ -15,6 +15,7 @@ from plugins.core.gallery_template import (
 PIXIV_ARTWORK_URL = "https://www.pixiv.net/artworks/{illust_id}"
 PIXIV_AJAX_URL = "https://www.pixiv.net/ajax/illust/{illust_id}"
 PIXIV_PAGES_URL = "https://www.pixiv.net/ajax/illust/{illust_id}/pages"
+FEATURE_KEY = "pixiv"
 
 
 def handle(ctx):

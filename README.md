@@ -6,6 +6,10 @@
 
 本專案是第三方 LINE Bot，並非 LINE 官方工具。使用非官方 API、自動化登入或長時間自動化操作，都可能違反服務條款或觸發風控機制，導致帳號被限制、登出或封鎖。請自行評估風險，建議使用專門的測試帳號，不要使用重要主帳號運行。
 
+## 使用建議
+
+因為 LINE 私訊常啟用 E2EE/Letter Sealing，第三方 API 不一定能解密或下載私訊圖片原始檔，可能導致圖片反搜、圖片上傳等功能無法取得圖片。建議主要在群組中使用本 Bot；如果必須在私訊使用，請先確認該聊天室的 E2EE 設定與圖片是否能被 Bot 下載。
+
 ## 主要功能
 
 - LINE 登入、收訊與回覆
@@ -21,7 +25,7 @@
 ```text
 .
 ├── main.py              # Bot 主程式與指令處理
-├── line_api_compat.py   # 將 CHRLINE-Patch 包成舊 AKANEPY 風格的相容層
+├── line_api_compat.py   # 將 CHRLINE-Patch 包成舊 linepy 風格的相容層
 ├── plugins/             # 熱載入外掛與輔助模組
 │   ├── image_search.py  # 回覆搜 / 模板搜
 │   ├── freeimage_upload.py # #圖片上傳
@@ -35,7 +39,7 @@
 ├── CHRLINE-Thrift/      # CHRLINE-Thrift definitions
 ├── json/                # Bot 狀態資料
 ├── tag/                 # 使用者標籤資料
-├── help/                # 指令說明文字
+├── help/                # 舊文字版指令說明
 └── Crt/                 # LINE 登入憑證/憑證資料
 ```
 
@@ -60,33 +64,70 @@ python -m pip install -r requirements.txt
 
 ## 設定
 
-複製 `.env.example` 成 `.env`，再填入需要的帳號與 API key。
+複製 `.env.example` 成 `.env`，再填入需要的帳號與 API key。下面每一項都有標註用途：
 
 ```env
+# [必填] LINE 登入帳號。
 LINE_ACCOUNT=
+
+# [必填] LINE 登入密碼。
 LINE_PASSWORD=
+
+# [選填] SauceNAO API key。使用「回覆搜1 / 模板搜1」建議填。
 SauceNAO_api_key=
+
+# [選填] Freeimage.host API key。使用「#圖片上傳」時必填。
 FREEIMAGE_API_KEY=
+
+# [必填] Bot 作者/最高管理員 MID。
 Creator=
+
+# [選填] 後台通知聊天室/群組 ID。登入、重啟、錯誤通知會發到這裡。
 Dio_GID=
 
-# PicImageSearch optional settings
+# [選填] PicImageSearch proxy，例如 http://127.0.0.1:7890。一般不用填。
 PICSEARCH_PROXIES=
+
+# [選填] PicImageSearch timeout 秒數。網路慢或 ExHentai 常 timeout 可調高。
 PICSEARCH_TIMEOUT=60
+
+# [選填] 是否驗證 SSL。一般保持 true。
 PICSEARCH_VERIFY_SSL=true
+
+# [選填] Ascii2D 入口清單，逗號分隔。官方站被擋時可加可用代理入口。
 ASCII2D_BASE_URLS=https://ascii2d.net
+
+# [選填] E-Hentai cookie。使用「回覆搜4」遇到限制時才需要。
 EHENTAI_COOKIES=
+
+# [選填] ExHentai cookie。使用「回覆搜5」通常需要。
 EXHENTAI_COOKIES=
+
+# [選填] nHentai cookie。遇到 403 或個人化結果再填。
 NHENTAI_COOKIE=
+
+# [選填] yt-dlp cookie 檔案路徑。下載需要登入或年齡限制內容時使用。
 YTDLP_COOKIES_FILE=cookies.txt
+
+# [選填] 是否啟用 plugins/ 熱載入。建議保持 true。
 HOT_RELOAD_PLUGINS=true
 
-# CHRLINE-Patch optional settings
+# [不建議改動] LINE 裝置類型。改錯可能導致登入或 sync 失敗。
 CHRLINE_DEVICE=DESKTOPWIN
+
+# [不建議改動] LINE app version。留空使用 CHRLINE 預設。
 CHRLINE_VERSION=
+
+# [選填] CHRLINE debug log。排查 API 問題時才改 true。
 CHRLINE_DEBUG=false
+
+# [不建議改動] 是否使用 Thrift。
 CHR_USE_THRIFT=True
+
+# [不建議改動] CHRLINE 內部 TMore 行為。
 CHR_TMORE_FORCE=False
+
+# [不建議改動] LINE API domain。除非 LINE endpoint 改版或測試特殊環境，否則不要改。
 LINE_HOST_DOMAIN=https://ga2.line.naver.jp
 LINE_OBS_DOMAIN=https://obs.line-apps.com
 LINE_API_DOMAIN=https://api.line.me
@@ -96,18 +137,20 @@ LINE_BIZ_TIMELINE_DOMAIN=https://ga2.line.naver.jp/mh
 
 ### Runtime JSON
 
-`json/ban.json` 和 `json/temp.json` 是機器運行時資料，已被 `.gitignore` 排除，不建議提交真實 MID 或使用次數。
+`json/ban.json`、`json/temp.json` 和 `json/features.json` 是機器運行時資料，已被 `.gitignore` 排除，不建議提交真實 MID、使用次數或個人開關狀態。
 
 格式可以參考：
 
 - `json/ban.example.json`
 - `json/temp.example.json`
+- `json/features.example.json`
 
 第一次啟動時，如果正式檔案不存在，`main.py` 會自動用預設值建立。需要手動建立時可以複製範例：
 
 ```powershell
 Copy-Item json\ban.example.json json\ban.json
 Copy-Item json\temp.example.json json\temp.json
+Copy-Item json\features.example.json json\features.json
 ```
 
 `tag/*.json` 是使用者標註紀錄，也已被 `.gitignore` 排除；`tag/.gitkeep` 只用來保留空資料夾。

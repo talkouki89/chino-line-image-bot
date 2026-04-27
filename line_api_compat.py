@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Compatibility layer from the old AKANEPY API to CHRLINE-Patch.
+"""Compatibility layer from the old linepy API to CHRLINE-Patch.
 
-The bot was written against a line-py/AKANEPY style client where thrift
+The bot was written against a linepy style client where thrift
 responses expose attributes (`msg.text`, `op.param1`, `group.members`).
 CHRLINE-Patch returns thrift data mostly as dict/list containers.  This
 module keeps the bot code small while the underlying LINE API is replaced.
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 from typing import Any, Iterable, Optional
 from urllib.parse import urlparse
 
@@ -284,9 +285,13 @@ class LINE:
 
     def updateProfile(self, profile) -> Any:
         display_name = getattr(profile, "displayName", None)
+        status_message = getattr(profile, "statusMessage", None)
+        result = None
         if display_name is not None:
-            return self._client.updateProfileAttribute(2, display_name)
-        return None
+            result = self._client.updateProfileAttribute(2, display_name)
+        if status_message is not None:
+            result = self._client.updateProfileAttribute(16, status_message)
+        return result
 
     def updateProfileAttribute(self, attrId: int, value: str) -> Any:
         return self._client.updateProfileAttribute(attrId, value)
@@ -423,10 +428,18 @@ class LINE:
                 return self._client.sendAudio(to, path)
             return self._client.sendFile(to, path)
         finally:
-            try:
-                os.remove(path)
-            except FileNotFoundError:
-                pass
+            _safe_remove(path)
+
+
+def _safe_remove(path: str, retries: int = 20, delay: float = 0.25) -> None:
+    for _ in range(retries):
+        try:
+            os.remove(path)
+            return
+        except FileNotFoundError:
+            return
+        except PermissionError:
+            time.sleep(delay)
 
 
 class OEPoll:
