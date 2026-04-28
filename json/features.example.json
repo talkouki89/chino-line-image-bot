@@ -7,8 +7,10 @@
     "engine_exhentai": true,
     "engine_iqdb": true,
     "engine_saucenao": true,
+    "engine_soutubot": true,
     "engine_tracemoe": true,
     "engine_yandex": true,
+    "engine_ggjav": true,
     "freeimage_upload": true,
     "help_templates": true,
     "image_draw_template": true,
@@ -16,5 +18,7 @@
     "media_tools": true,
     "nhentai": true,
     "pixiv": true,
-    "wnacg": true
+    "wnacg": true,
+    "xslist": true,
+    "announcement_notify": false
 }

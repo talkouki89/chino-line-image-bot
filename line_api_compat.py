@@ -92,12 +92,29 @@ FIELD_ALIASES = {
         "picturePath": 7,
         "extra": 8,
     },
+    "Extra": {
+        "groupExtra": 1,
+        "peerExtra": 2,
+    },
+    "Group": {
+        "id": 1,
+        "createdTime": 2,
+        "name": 10,
+        "pictureStatus": 11,
+        "preventedJoinByTicket": 13,
+        "members": 20,
+        "creator": 21,
+        "invitee": 22,
+    },
     "GroupExtra": {
         "creator": 1,
         "preventedJoinByTicket": 2,
         "invitationTicket": 3,
         "memberMids": 4,
         "inviteeMids": 5,
+        "addFriendDisabled": 6,
+        "ticketDisabled": 7,
+        "autoName": 8,
     },
     "GetAllChatMidsResponse": {
         "memberChatMids": 1,
@@ -161,6 +178,8 @@ def _get(data: Any, key: str, field_id: Optional[int] = None, default: Any = Non
 
 def _wrap(value: Any, kind: Optional[str] = None) -> Any:
     if isinstance(value, AttrProxy):
+        if kind is not None and getattr(value, "_kind", None) is None:
+            return AttrProxy(value._data, kind)
         return value
     if isinstance(value, dict):
         return AttrProxy(value, kind)
@@ -230,13 +249,47 @@ def _infer_kind(name: str, value: Any) -> Optional[str]:
         return "Profile"
     if name in {"contact"}:
         return "Contact"
-    if name in {"chat", "group"}:
+    if name == "group":
+        return "Group"
+    if name == "chat":
         return "Chat"
     if name == "extra":
+        return "Extra"
+    if name == "groupExtra":
         return "GroupExtra"
     if name == "contents":
         return "ChatRoomAnnouncementContents"
     return None
+
+
+def _extract_chats(response: Any) -> list:
+    """Normalize CHRLINE getChats responses into a list of Chat objects."""
+    if response is None:
+        return []
+    data = response._data if isinstance(response, AttrProxy) else response
+    if isinstance(data, list):
+        return data
+    if isinstance(data, tuple):
+        return list(data)
+    if isinstance(data, set):
+        return list(data)
+    if isinstance(data, dict):
+        chats = data.get("chats") or data.get(1) or data.get("val_1")
+        if isinstance(chats, dict):
+            return list(chats.values())
+        if isinstance(chats, (list, tuple, set)):
+            return list(chats)
+        if chats is not None:
+            return [chats]
+        return list(data.values())
+    chats = _get(data, "chats", 1, None)
+    if isinstance(chats, dict):
+        return list(chats.values())
+    if isinstance(chats, (list, tuple, set)):
+        return list(chats)
+    if chats is not None:
+        return [chats]
+    return [data]
 
 
 class LINE:
@@ -302,26 +355,29 @@ class LINE:
     def getContacts(self, mids: Iterable[str]):
         return _wrap(self._client.getContacts(list(mids)))
 
+    def getGroup(self, mid: str):
+        return _wrap(self._client.getGroup(mid), "Group")
+
+    def getGroups(self, mids: Iterable[str]):
+        return [_wrap(item, "Group") for item in self._client.getGroups(list(mids))]
+
     def getChats(self, chat_mids, *args, **kwargs):
         single = isinstance(chat_mids, str)
         mids = [chat_mids] if single else list(chat_mids)
-        chats = _wrap(self._client.getChats(mids, *args, **kwargs))
+        response = _wrap(self._client.getChats(mids, *args, **kwargs))
+        chats = _extract_chats(response)
         if single:
-            if isinstance(chats, list):
-                return _wrap(chats[0], "Chat") if chats else None
-            if isinstance(chats, AttrProxy):
-                # Some CHRLINE responses wrap chats in field 1.
-                data = _get(chats, "chats", 1, [])
-                if isinstance(data, list) and data:
-                    return _wrap(data[0], "Chat")
-            return _wrap(chats, "Chat")
-        return chats
+            return _wrap(chats[0], "Chat") if chats else None
+        return [_wrap(chat, "Chat") for chat in chats]
 
     def getChatV2(self, chat_mid: str):
         return self.getChats(chat_mid)
 
     def getAllChatMids(self, *args, **kwargs):
         return _wrap(self._client.getAllChatMids(*args, **kwargs), "GetAllChatMidsResponse")
+
+    def getGroupIdsJoined(self):
+        return self._client.getGroupIdsJoined()
 
     def fetchOperation(self, revision: int, count: int = 100):
         return self.fetchOps(revision, count)

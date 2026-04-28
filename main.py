@@ -18,7 +18,7 @@ from plugins.core.features import (
     load_feature_flags,
     toggle_feature,
 )
-from plugins.core.help_template import GITHUB_URL, build_help_flex, build_settings_flex
+from plugins.core.help_template import GITHUB_URL, build_help_flex, build_settings_flex, build_status_flex
 from dotenv import load_dotenv
 from datetime import datetime
 import threading
@@ -109,8 +109,10 @@ plugins = PluginManager(PLUGIN_DIR, enabled=HOT_RELOAD_PLUGINS)
 if botcreator not in ban["admin"]:
     ban["admin"].append(botcreator)
 
-BOT_DISPLAY_NAME = "智乃搜圖機器人🍥"
-BOT_STATUS_MESSAGE = f"使用請輸入 圖搜說明\nGitHub: {GITHUB_URL}\n作者: 智乃妹妹"
+DEFAULT_BOT_DISPLAY_NAME = "智乃搜圖機器人🍥"
+DEFAULT_BOT_STATUS_MESSAGE = f"使用請輸入 圖搜說明\nGitHub: {GITHUB_URL}\n作者: 智乃妹妹"
+BOT_DISPLAY_NAME = os.getenv("BOT_DISPLAY_NAME", DEFAULT_BOT_DISPLAY_NAME)
+BOT_STATUS_MESSAGE = os.getenv("BOT_STATUS_MESSAGE", DEFAULT_BOT_STATUS_MESSAGE).replace("\\n", "\n")
 
 try:
     cl.updateProfileAttribute(2, BOT_DISPLAY_NAME)
@@ -258,10 +260,13 @@ def extract_flex_text(node):
 def build_auto_friend_message():
     """Message sent when a user adds the bot as a friend."""
     return (
-        "感謝您的加入\n\n"
-        f"本專案 GitHub：{GITHUB_URL}\n"
-        "有遇到 bug 可以提交 issues。\n"
-        "有新功能或想加的功能也可以提交 PR。"
+        "感謝加入智乃搜圖機器人٩(ˊᗜˋ*)و\n\n"
+        "建議把我邀請到群組使用，圖片解析會比私訊穩定。\n"
+        "私訊可能因為 E2EE/Letter Sealing 無法下載圖片。\n\n"
+        "使用方式：輸入「圖搜說明」查看指令\n"
+        f"GitHub：{GITHUB_URL}\n\n"
+        "遇到 bug 可以開 issue。\n"
+        "想加新功能也歡迎發 PR (๑•̀ㅂ•́)و✧"
     )
 
 def Runtime(secs):
@@ -314,13 +319,76 @@ def get_object_value(obj, *names, default=None):
             continue
         if isinstance(obj, dict) and name in obj:
             return obj[name]
+        if not isinstance(name, str):
+            continue
         try:
             value = getattr(obj, name)
-        except AttributeError:
+        except (AttributeError, TypeError):
             continue
         if value not in (None, ""):
             return value
     return default
+
+
+def safe_send_background(message):
+    """Send a status message to the configured background chat when available."""
+    if not background:
+        return
+    try:
+        cl.sendMessage(background, message)
+    except Exception as exc:
+        logError(f"background notify failed: {exc}")
+
+
+def get_chat_summary(chat_id):
+    """Best-effort chat name lookup used by restart/status notifications."""
+    chat = None
+    last_error = None
+    for getter_name in ("getChats", "getChatV2", "getGroup", "getCompactGroup"):
+        getter = getattr(cl, getter_name, None)
+        if getter is None:
+            continue
+        try:
+            chat = getter(chat_id)
+        except Exception as exc:
+            last_error = exc
+            continue
+        name = get_object_value(chat, "name", "chatName", "displayName", default="")
+        mid = get_object_value(chat, "id", "chatMid", "mid", default=chat_id)
+        if name and name != chat_id:
+            return name, mid
+
+    if last_error:
+        logError(f"chat name lookup failed for {chat_id}: {last_error}")
+    if str(chat_id).startswith("u"):
+        return "私訊聊天室", chat_id
+    if str(chat_id).startswith("c"):
+        return "群組名稱取得失敗", chat_id
+    if str(chat_id).startswith("r"):
+        return "多人聊天室名稱取得失敗", chat_id
+    return "聊天室名稱取得失敗", chat_id
+
+
+def get_chat_member_count(chat_id):
+    """Best-effort member count for group list output."""
+    for getter_name in ("getChats", "getChatV2", "getGroup", "getCompactGroup"):
+        getter = getattr(cl, getter_name, None)
+        if getter is None:
+            continue
+        try:
+            chat = getter(chat_id)
+        except Exception:
+            continue
+        members = get_object_value(chat, "members", "memberMids", default=None)
+        if members is None:
+            extra = get_object_value(chat, "extra", default=None)
+            group_extra = get_object_value(extra, "groupExtra", 1, default=None)
+            members = get_object_value(group_extra, "memberMids", default=None)
+        try:
+            return len(members)
+        except TypeError:
+            continue
+    return "未知"
 
 
 def parse_mentioned_mids(content_metadata):
@@ -384,10 +452,10 @@ def help1():  # 一般功能
 print(color()+"登入者名稱:"+clProfile.displayName+"\n登入者MID:"+clMID)
 print("===== 智乃圖搜2.0已登入完成 =====")
 try:
-    cl.sendMessage(background, "【自動發送】\n智乃圖搜2.0登入成功\n➜登錄時間:{time}".format(
+    safe_send_background("【自動發送】\n智乃圖搜2.0登入成功\n➜登錄時間:{time}".format(
         time=(time.time() - mulai)))
-except:
-    pass
+except Exception as exc:
+    logError(f"startup notify failed: {exc}")
 
 def PicBot(op):
     """Route one LINE operation to the built-in command handlers.
@@ -433,7 +501,7 @@ def PicBot(op):
                         cl.sendMessage(background, "群組人數小於10人:\n" + str(group.name)+"群組 \n" + str(
                             group.id) + "\n邀請者:\n" + contact1.displayName + "\nMid:\n" + contact1.mid)
                         cl.deleteSelfFromChat(op.param1)
-        if op.type == 30:
+        if op.type == 30 and is_feature_enabled("announcement_notify"):
             update_type = op.param3
             if update_type == "c":
                 a = cl.getChatRoomAnnouncements(op.param1)[0]
@@ -482,6 +550,9 @@ def PicBot(op):
                     with open(tag_file, "w", encoding="utf-8") as f:
                         json.dump(who_mark_me, f, sort_keys=True, indent=4, ensure_ascii=False)                                                  
             plugin_context = build_plugin_context(op, msg, text, cmd, to, sender, receiver, msg_id)
+            if cmd in {"功能狀態", "功能状态", "功能開啟狀態", "功能列表狀態"}:
+                sendTemplate(to, build_status_flex(feature_flags))
+                return
             if cmd in {"功能設定", "功能開關", "功能列表"}:
                 if is_manager(sender):
                     sendTemplate(to, build_settings_flex(feature_flags))
@@ -603,18 +674,11 @@ def PicBot(op):
                         return
 
                     contact = cl.getContact(sender)
-                    group = cl.getChats(to)
                     contact_name = get_object_value(
                         contact, "displayName", "name", default=sender
                     )
-                    group_name = get_object_value(
-                        group, "name", "chatName", "displayName", default=to
-                    )
-                    group_id = get_object_value(
-                        group, "id", "chatMid", "mid", default=to
-                    )
-                    cl.sendMessage(
-                        background,
+                    group_name, group_id = get_chat_summary(to)
+                    safe_send_background(
                         f"【{contact_name}】要求重啟 bot\n"
                         f"群組名稱: {group_name}\n"
                         f"群組MID: {group_id}\n"
@@ -704,21 +768,19 @@ def PicBot(op):
                     cl.relatedMessage(to, format(
                         str(elapsed_time)) + "秒", op.message.id)
                 # 群組列表
-                elif cmd == '圖搜lg':
-                    groups = cl.getAllChatMids().memberChatMids
-                    no = 0 + 1
-                    k = len(groups)//100
-                    ret_ = "以下為群組列表"
-                    cl.relatedMessage(to, str(ret_), op.message.id)
-                    for a in range(k+1):
-                        ret_ = "╔══[群組列表]"
-                        for gid in groups[a*100: (a+1)*100]:
-                            group = cl.getChatV2(gid)
-                            ret_ += "\n╠ {}. {} | {}".format(
-                                str(no), str(group.name), str(len(group.members)))
-                            no += 1
-                        ret_ += "\n╚══[總共{}個群組]".format(str(len(groups)))
-                        cl.relatedMessage(to, str(ret_), op.message.id)
+                elif cmd in {'lg', 'list group', '圖搜lg'}:
+                    groups = list(cl.getAllChatMids().memberChatMids)
+                    cl.relatedMessage(to, f"正在讀取群組列表，共 {len(groups)} 個。", op.message.id)
+                    for offset in range(0, len(groups), 30):
+                        lines = ["╔══[群組列表]"]
+                        for no, gid in enumerate(groups[offset:offset + 30], start=offset + 1):
+                            group_name, group_id = get_chat_summary(gid)
+                            member_count = get_chat_member_count(gid)
+                            lines.append(f"╠ {no}. {group_name}")
+                            lines.append(f"║ 人數: {member_count}")
+                            lines.append(f"║ GID: {group_id}")
+                        lines.append(f"╚══[總共 {len(groups)} 個群組]")
+                        cl.relatedMessage(to, "\n".join(lines), op.message.id)
                 # 機器簡介
                 elif cmd == 'pic:about':
                     try:

@@ -7,16 +7,42 @@ GITHUB_URL = "https://github.com/talkouki89/chino-line-image-bot"
 CREATOR_NAME = "智乃妹妹"
 LIFF_COMMAND_URL = "line://app/1660845055-GMJrEOVY?type=text&text={text}&auto=yes"
 
+IMAGE_ENGINE_KEYS = [
+    "engine_saucenao",
+    "engine_ascii2d",
+    "engine_tracemoe",
+    "engine_ehentai",
+    "engine_exhentai",
+    "engine_copyseeker",
+    "engine_yandex",
+    "engine_iqdb",
+    "engine_animetrace",
+    "engine_soutubot",
+    "engine_ggjav",
+]
+
+OTHER_FEATURE_KEYS = [
+    "help_templates",
+    "media_tools",
+    "image_draw_template",
+    "freeimage_upload",
+    "nhentai",
+    "wnacg",
+    "jmcomic",
+    "pixiv",
+    "xslist",
+    "auto_friend",
+    "announcement_notify",
+]
+
 
 def build_help_flex(flags, is_admin=False):
     lines = [
         "智乃搜圖機器人",
         "",
-        "初次使用",
-        "請先輸入 Allowliff",
-        "依照畫面授權 LIFF 模板權限。",
+        "初次使用建議先輸入 Allowliff，並允許 LIFF 權限。",
         "",
-        "圖片反搜",
+        "圖片搜尋",
         "回覆搜1 SauceNAO",
         "回覆搜2 Ascii2D",
         "回覆搜3 TraceMoe",
@@ -26,76 +52,78 @@ def build_help_flex(flags, is_admin=False):
         "回覆搜7 Yandex",
         "回覆搜8 Iqdb",
         "回覆搜9 AnimeTrace",
+        "回覆搜10 Soutubot",
+        "回覆搜11 GGJAV 女優辨識",
         "",
         "作品解析",
         "n:數字 / n:popular",
         "w:數字 / c:數字 / p:數字",
+        "xs:關鍵字",
         "",
-        "媒體工具",
-        "抽圖 / 隨機圖 / r18色圖",
-        "#圖片上傳 / 誰標我 / 清空標註",
+        "其他功能",
+        "抽圖 / 隨機圖 / 隨機無ai / r18色圖 / r18無ai",
+        "#圖片上傳 / 功能狀態",
         "",
-        "功能狀態",
-        feature_status_text(flags),
+        f"功能狀態：{feature_status_text(flags)}",
     ]
     if is_admin:
-        lines.extend(["", "管理", "功能設定 / 功能切換 <key> / pic:reb"])
+        lines.extend(["", "管理員", "功能設定 / 功能切換 <key> / lg / pic:reb / reb @bot"])
     return simple_flex("ChinoBot 指令說明", lines, footer_buttons=[uri_button("開啟 GitHub", GITHUB_URL)])
 
 
 def build_settings_flex(flags):
-    engines = [
-        settings_intro_bubble("功能設定：搜圖引擎"),
-        *feature_bubbles(flags, [
-            "engine_saucenao",
-            "engine_ascii2d",
-            "engine_tracemoe",
-            "engine_ehentai",
-            "engine_exhentai",
-            "engine_copyseeker",
-            "engine_yandex",
-            "engine_iqdb",
-            "engine_animetrace",
+    messages = []
+    for message in (
+        flex("ChinoBot 搜圖引擎開關", [
+            settings_intro_bubble("搜圖引擎開關"),
+            *feature_bubbles(flags, IMAGE_ENGINE_KEYS),
         ]),
-    ]
-    others = [
-        settings_intro_bubble("功能設定：其他功能"),
-        *feature_bubbles(flags, [
-            "help_templates",
-            "media_tools",
-            "image_draw_template",
-            "freeimage_upload",
-            "nhentai",
-            "wnacg",
-            "jmcomic",
-            "pixiv",
-            "auto_friend",
+        flex("ChinoBot 其他功能開關", [
+            settings_intro_bubble("其他功能開關"),
+            *feature_bubbles(flags, OTHER_FEATURE_KEYS),
         ]),
-    ]
-    return [
-        flex("ChinoBot 功能設定：搜圖引擎", engines),
-        flex("ChinoBot 功能設定：其他功能", others),
-    ]
+    ):
+        if isinstance(message, list):
+            messages.extend(message)
+        else:
+            messages.append(message)
+    return messages
+
+
+def build_status_flex(flags):
+    enabled = []
+    disabled = []
+    index = feature_index()
+    for item in FEATURE_DEFINITIONS:
+        target = enabled if is_enabled(flags, item["key"]) else disabled
+        target.append(index[item["key"]]["name"])
+    return flex("ChinoBot 功能狀態", [
+        status_bubble("已開啟", enabled, "ON"),
+        status_bubble("已關閉", disabled, "OFF"),
+    ])
+
+
+def status_bubble(title_text, names, marker):
+    lines = [title_text, "", f"共 {len(names)} 個"]
+    lines.extend(f"{marker}  {name}" for name in names)
+    return simple_bubble(lines)
 
 
 def feature_bubbles(flags, keys):
-    index = {item["key"]: item for item in FEATURE_DEFINITIONS}
-    return [feature_button_bubble(index[key], is_enabled(flags, key)) for key in keys]
+    index = feature_index()
+    return [feature_button_bubble(index[key], is_enabled(flags, key)) for key in keys if key in index]
+
+
+def feature_index():
+    return {item["key"]: item for item in FEATURE_DEFINITIONS}
 
 
 def settings_intro_bubble(title_text):
-    return {
-        "type": "bubble",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                title(title_text),
-                text("只有管理員可以使用。", "#555555"),
-                text("點擊按鈕會開啟 LIFF 並自動送出切換指令。", "#555555"),
-            ],
-        },
-    }
+    return bubble([
+        title(title_text),
+        text("只有管理員可以切換功能。"),
+        text("按下按鈕會透過 LIFF 發送切換指令，不會再次洗出設定模板。", "#666666"),
+    ])
 
 
 def feature_button_bubble(item, enabled):
@@ -103,110 +131,54 @@ def feature_button_bubble(item, enabled):
     command = f"功能切換 {item['key']}"
     return {
         "type": "bubble",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                title(item["name"]),
-                text(f"目前：{state}", "#16a34a" if enabled else "#dc2626"),
-                text(f"指令：{command}", "#555555"),
-                text(item["description"], "#777777"),
-            ],
-        },
-        "footer": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "button",
-                    "style": "primary",
-                    "height": "sm",
-                    "action": {
-                        "type": "uri",
-                        "label": "切換開關",
-                        "uri": liff_command_url(command),
-                    },
-                }
-            ],
-        },
+        "styles": {"body": {"backgroundColor": "#fff7fb"}, "footer": {"backgroundColor": "#fff7fb"}},
+        "body": box([
+            title(item["name"]),
+            text(f"狀態：{state}", "#16a34a" if enabled else "#dc2626"),
+            text(f"指令：{item['commands']}", "#555555"),
+            text(item["description"], "#777777"),
+        ]),
+        "footer": footer_buttons([
+            {
+                "type": "button",
+                "style": "primary",
+                "height": "sm",
+                "action": {
+                    "type": "uri",
+                    "label": "切換",
+                    "uri": liff_command_url(command),
+                },
+            }
+        ]),
     }
-
-
-def liff_command_url(command):
-    return LIFF_COMMAND_URL.format(text=quote(command, safe=""))
-
-
-def _legacy_settings_lines(flags):
-    intro = [
-        "功能設定",
-        "",
-        "只有管理員可以使用。",
-        "要切換請輸入：",
-        "功能切換 key",
-        "",
-    ]
-    engines = intro + section_lines(flags, "搜圖引擎", [
-        "engine_saucenao",
-        "engine_ascii2d",
-        "engine_tracemoe",
-        "engine_ehentai",
-        "engine_exhentai",
-        "engine_copyseeker",
-        "engine_yandex",
-        "engine_iqdb",
-        "engine_animetrace",
-    ])
-    others = ["其他功能", ""] + section_lines(flags, "其他功能", [
-        "help_templates",
-        "media_tools",
-        "image_draw_template",
-        "freeimage_upload",
-        "nhentai",
-        "wnacg",
-        "jmcomic",
-        "pixiv",
-        "auto_friend",
-    ])
-    return [
-        simple_flex("ChinoBot 功能設定：搜圖引擎", engines),
-        simple_flex("ChinoBot 功能設定：其他功能", others),
-    ]
-
-
-def section_lines(flags, title_text, keys):
-    lines = [f"【{title_text}】"]
-    index = {item["key"]: item for item in FEATURE_DEFINITIONS}
-    for key in keys:
-        item = index[key]
-        state = "開" if is_enabled(flags, key) else "關"
-        lines.append(f"{state}｜{item['name']}")
-        lines.append(f"功能切換 {key}")
-    return lines
 
 
 def simple_flex(alt_text, lines, footer_buttons=None):
+    body = simple_bubble(lines)
+    message = {
+        "type": "flex",
+        "altText": alt_text,
+        "contents": body,
+    }
+    if footer_buttons:
+        message["contents"]["footer"] = {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "sm",
+            "contents": footer_buttons,
+        }
+    return message
+
+
+def simple_bubble(lines):
     contents = [title(lines[0])]
     for line in lines[1:]:
         contents.append(text(line or " ", "#555555"))
-    bubble = {
-        "type": "flex",
-        "altText": alt_text,
-        "contents": {
-            "type": "bubble",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": contents[:45],
-            },
-        },
+    return {
+        "type": "bubble",
+        "styles": {"body": {"backgroundColor": "#fff7fb"}, "footer": {"backgroundColor": "#fff7fb"}},
+        "body": box(contents[:45]),
     }
-    if footer_buttons:
-        bubble["contents"]["footer"] = {
-            "type": "box",
-            "layout": "vertical",
-            "contents": footer_buttons,
-        }
-    return bubble
 
 
 def feature_status_text(flags):
@@ -214,132 +186,79 @@ def feature_status_text(flags):
     return f"{enabled_count}/{len(FEATURE_DEFINITIONS)} 開啟"
 
 
-def flex_messages(alt_text, bubbles, chunk_size=4):
-    messages = [
-        flex(f"{alt_text} {index + 1}", bubbles[index:index + chunk_size])
-        for index in range(0, len(bubbles), chunk_size)
-    ]
+def flex(alt_text, bubbles):
+    messages = []
+    for index in range(0, len(bubbles), 10):
+        messages.append({
+            "type": "flex",
+            "altText": alt_text if index == 0 else f"{alt_text} {index // 10 + 1}",
+            "contents": {"type": "carousel", "contents": bubbles[index:index + 10]},
+        })
     return messages[0] if len(messages) == 1 else messages
 
 
-def flex(alt_text, bubbles):
-    return {
-        "type": "flex",
-        "altText": alt_text,
-        "contents": {"type": "carousel", "contents": bubbles[:10]},
-    }
-
-
-def intro_bubble(flags):
-    enabled_count = sum(1 for item in FEATURE_DEFINITIONS if is_enabled(flags, item["key"]))
+def bubble(contents):
     return {
         "type": "bubble",
-        "size": "mega",
-        "body": box([
-            title("智乃搜圖機器人"),
-            text("使用請輸入：圖搜說明", "#666666"),
-            separator(),
-            row("功能狀態", f"{enabled_count}/{len(FEATURE_DEFINITIONS)} 開啟"),
-            row("作者", CREATOR_NAME),
-            text("有 bug 可以提交 issue；新功能或想加的功能可以提交 PR。", "#555555"),
-        ]),
-        "footer": footer_buttons([
-            uri_button("GitHub", GITHUB_URL),
-        ]),
-    }
-
-
-def legacy_settings_intro_bubble():
-    return {
-        "type": "bubble",
-        "size": "mega",
-        "body": box([
-            title("功能設定"),
-            text("只有管理員或作者可以切換。請複製卡片中的切換指令送出。", "#555555"),
-            separator(),
-            text("關閉後，對應插件指令會被 PluginManager 擋下，不會進入功能處理。", "#777777"),
-        ]),
-    }
-
-
-def status_bubble(flags):
-    contents = [title("功能狀態")]
-    for item in FEATURE_DEFINITIONS:
-        mark = "ON" if is_enabled(flags, item["key"]) else "OFF"
-        color = "#16a34a" if mark == "ON" else "#dc2626"
-        contents.append(row(item["name"], mark, value_color=color))
-    return {"type": "bubble", "size": "mega", "body": box(contents)}
-
-
-def feature_toggle_bubble(item, enabled):
-    state = "開啟" if enabled else "關閉"
-    return {
-        "type": "bubble",
-        "size": "mega",
-        "body": box([
-            text(item["key"], "#777777"),
-            title(item["name"]),
-            row("目前", state, value_color="#16a34a" if enabled else "#dc2626"),
-            row("指令", item["commands"]),
-            row("切換", f"功能切換 {item['key']}"),
-            text(item["description"], "#555555"),
-        ]),
-    }
-
-
-def command_bubble(name, commands):
-    contents = [title(name)]
-    contents.extend(row(command, description) for command, description in commands)
-    return {"type": "bubble", "size": "mega", "body": box(contents)}
-
-
-def update_bubble(is_admin):
-    rows = [
-        title("更新說明"),
-        text("Help 已改為 Flex 模板，並整合 GitHub、更新說明與功能開關狀態。", "#555555"),
-        text("圖片上傳目前使用 Freeimage.host。私訊 E2EE 圖片若 LINE 不提供可下載原圖，會提示改用群組或關閉 E2EE。", "#555555"),
-    ]
-    if is_admin:
-        rows.append(text("管理指令：功能設定 / 功能切換 <key> / pic:help / pic:reb", "#555555"))
-    return {
-        "type": "bubble",
-        "size": "mega",
-        "body": box(rows),
-        "footer": footer_buttons([uri_button("開啟 GitHub", GITHUB_URL)]),
+        "styles": {"body": {"backgroundColor": "#fff7fb"}},
+        "body": box(contents),
     }
 
 
 def box(contents):
-    return {"type": "box", "layout": "vertical", "spacing": "md", "contents": contents}
-
-
-def title(value):
-    return {"type": "text", "text": value, "weight": "bold", "size": "xl", "wrap": True}
-
-
-def text(value, color="#111111"):
-    return {"type": "text", "text": value, "size": "sm", "wrap": True, "color": color}
-
-
-def row(label, value, value_color="#111111"):
     return {
         "type": "box",
-        "layout": "baseline",
+        "layout": "vertical",
         "spacing": "sm",
-        "contents": [
-            {"type": "text", "text": str(label), "size": "sm", "color": "#777777", "flex": 3},
-            {"type": "text", "text": str(value), "size": "sm", "color": value_color, "wrap": True, "flex": 5},
-        ],
+        "backgroundColor": "#fff7fb",
+        "paddingAll": "18px",
+        "contents": contents,
     }
 
 
-def separator():
-    return {"type": "separator"}
+def title(value):
+    return {
+        "type": "text",
+        "text": str(value),
+        "weight": "bold",
+        "size": "lg",
+        "color": "#5b3b73",
+        "wrap": True,
+    }
+
+
+def text(value, color="#333333"):
+    return {
+        "type": "text",
+        "text": str(value),
+        "size": "sm",
+        "color": color,
+        "wrap": True,
+    }
 
 
 def footer_buttons(buttons):
-    return {"type": "box", "layout": "vertical", "spacing": "sm", "contents": buttons}
+    return {
+        "type": "box",
+        "layout": "vertical",
+        "spacing": "sm",
+        "contents": buttons,
+    }
 
 
-def uri_button(label, url):
-    return {"type": "button", "style": "primary", "height": "sm", "action": {"type": "uri", "label": label, "uri": url}}
+def uri_button(label, uri):
+    return {
+        "type": "button",
+        "style": "link",
+        "color": "#f08ab8",
+        "height": "sm",
+        "action": {
+            "type": "uri",
+            "label": label,
+            "uri": uri,
+        },
+    }
+
+
+def liff_command_url(command):
+    return LIFF_COMMAND_URL.format(text=quote(command, safe=""))

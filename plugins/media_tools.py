@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import threading
 
 import requests
 from dotenv import load_dotenv
@@ -143,20 +144,27 @@ def download_video(url, output_file):
 
 
 def handle_random_lolicon(ctx, r18=0, exclude_ai=False):
-    if not ctx.is_creator:
-        return True
+    threading.Thread(
+        target=send_random_lolicon_async,
+        args=(ctx, r18, exclude_ai),
+        daemon=True,
+    ).start()
+    ctx.cl.relatedMessage(ctx.to, "抽圖請求已送出，圖片讀取中。", ctx.msg_id)
+    return True
+
+
+def send_random_lolicon_async(ctx, r18=0, exclude_ai=False):
     try:
         data = request_lolicon({"r18": r18, "excludeAI": exclude_ai})
     except Exception as exc:
         ctx.log_error(exc)
         ctx.reply("隨機色圖讀取失敗")
-        return True
+        return
 
     label = "R18 隨機色圖" if r18 else "一般隨機色圖"
     if exclude_ai:
         label += "（無 AI）"
     send_lolicon_result(ctx, data, label=label)
-    return True
 
 
 def handle_lolicon_tags(ctx):
