@@ -9,6 +9,8 @@ module keeps the bot code small while the underlying LINE API is replaced.
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 import tempfile
 import time
@@ -18,6 +20,8 @@ from urllib.parse import urlparse
 import requests
 
 from CHRLINE import CHRLINE
+from CHRLINE.helpers.bulders.message import Message as WrappedMessage
+from CHRLINE.serializers.DummyProtocol import DummyThrift
 
 
 DEFAULT_LINE_DOMAINS = {
@@ -461,12 +465,69 @@ class LINE:
     def unsendMessage(self, messageId: str):
         return self._client.unsendMessage(messageId)
 
+    def downloadReplyImage(self, chatId, messageId, returnAs="path", saveAs="", objFrom=None):
+        obj_from = objFrom or chatId
+        message = self._find_recent_message(chatId, messageId)
+        if message is not None and self._is_e2ee_image_message(message):
+            data = self._download_e2ee_image_message(message)
+            if saveAs:
+                with open(saveAs, "wb") as fp:
+                    fp.write(data)
+                return saveAs if returnAs == "path" else data
+            return data
+        return self.downloadObjectMsg(messageId, returnAs=returnAs, saveAs=saveAs, objFrom=obj_from)
+
     def downloadObjectMsg(self, messageId, returnAs="path", saveAs="", objFrom="c"):
         path = saveAs or None
         data = self._client.downloadObjectMsg(messageId, path=path, objFrom=objFrom)
         if returnAs == "path":
             return saveAs or path
         return data
+
+    def _find_recent_message(self, chatId, messageId, count=1000):
+        try:
+            for message in self._client.getRecentMessagesV2(chatId, count):
+                if str(_get(message, "id", 4, "")) == str(messageId):
+                    return message
+        except Exception:
+            return None
+        return None
+
+    def _is_e2ee_image_message(self, message):
+        return bool(
+            _get(message, "contentType", 15) == 1
+            and _get(message, "chunks", 20)
+            and (_get(message, "contentMetadata", 18, {}) or {}).get("OID")
+        )
+
+    def _download_e2ee_image_message(self, message):
+        message = self._ensure_wrapped_message(message)
+        metadata = _get(message, "contentMetadata", 18, {}) or {}
+        key_material = self._client.decryptE2EEMessage(message, message.from_type == 2)["keyMaterial"]
+        encrypted = self._client.downloadObjectForService(
+            metadata["OID"],
+            None,
+            "talk/" + metadata["SID"],
+            additionalHeaders={"X-Talk-Meta": self._e2ee_image_meta(_get(message, "id", 4))},
+        )
+        return self._client.decryptByKeyMaterial(encrypted, key_material)
+
+    def _ensure_wrapped_message(self, message):
+        if isinstance(message, WrappedMessage):
+            wrapped = message
+        else:
+            wrapped = WrappedMessage("Message", ins=message, cl=self._client)
+        op = DummyThrift("Operation", cl=self._client)
+        op[3] = 25 if _get(message, "_from", 1) == self._client.mid else 26
+        wrapped.set_ref(op)
+        return wrapped
+
+    def _e2ee_image_meta(self, message_id):
+        data = [11, 0, 4]
+        data += self._client.getStringBytes(str(message_id))
+        data += [15, 0, 27, 12, 0, 0, 0, 0, 0]
+        message = base64.b64encode(bytes(data)).decode()
+        return base64.b64encode(json.dumps({"message": message}).encode()).decode()
 
     def sendImageWithURL(self, to: str, url: str):
         return self._send_url_media(to, url, "image")

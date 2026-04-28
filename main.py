@@ -44,8 +44,11 @@ PLUGIN_DIR = os.path.join(ROOT_DIR, "plugins")
 ERROR_LOG = os.path.join(ROOT_DIR, "errorLog.txt")
 FEATURE_FLAGS_PATH = os.path.join(DATA_DIR, "features.json")
 VERSION_FILE = os.path.join(ROOT_DIR, "VERSION")
+VERSION_NOTES_FILE = os.path.join(ROOT_DIR, "VERSION_NOTES.md")
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION"
 REMOTE_VERSION_API_URL = "https://api.github.com/repos/talkouki89/chino-line-image-bot/contents/VERSION?ref=master"
+REMOTE_VERSION_NOTES_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION_NOTES.md"
+REMOTE_VERSION_NOTES_API_URL = "https://api.github.com/repos/talkouki89/chino-line-image-bot/contents/VERSION_NOTES.md?ref=master"
 GITHUB_PULLS_API = "https://api.github.com/repos/talkouki89/chino-line-image-bot/pulls?state=closed&base=master&sort=updated&direction=desc&per_page=5"
 LIFF_ALLOW_MESSAGE = "請Bot允許liff line://app/1660845055-GMJrEOVY?type=text&text=LiffOk"
 
@@ -433,6 +436,13 @@ def read_local_version():
         return "0.0.0"
 
 
+def read_local_version_notes():
+    try:
+        return read_text_file(VERSION_NOTES_FILE).strip()
+    except FileNotFoundError:
+        return ""
+
+
 def fetch_text(url, timeout=15):
     request = urllib.request.Request(
         url,
@@ -445,16 +455,24 @@ def fetch_text(url, timeout=15):
         return response.read().decode("utf-8", errors="replace")
 
 
-def fetch_remote_version():
+def fetch_github_content(api_url, raw_url):
     try:
-        payload = json.loads(fetch_text(REMOTE_VERSION_API_URL))
+        payload = json.loads(fetch_text(api_url))
         content = payload.get("content", "")
         encoding = payload.get("encoding", "")
         if encoding == "base64" and content:
             return base64.b64decode(content).decode("utf-8", errors="replace").strip()
     except Exception as exc:
-        logError(f"version API fetch failed, fallback to raw URL: {exc}")
-    return fetch_text(REMOTE_VERSION_URL).strip()
+        logError(f"GitHub content API fetch failed, fallback to raw URL: {exc}")
+    return fetch_text(raw_url).strip()
+
+
+def fetch_remote_version():
+    return fetch_github_content(REMOTE_VERSION_API_URL, REMOTE_VERSION_URL)
+
+
+def fetch_remote_version_notes():
+    return fetch_github_content(REMOTE_VERSION_NOTES_API_URL, REMOTE_VERSION_NOTES_URL)
 
 
 def fetch_recent_merged_prs():
@@ -486,7 +504,12 @@ def build_version_check_template():
         return build_version_check_flex(local_version, error="無法讀取遠端 VERSION。")
 
     prs = fetch_recent_merged_prs() if remote_version != local_version else []
-    return build_version_check_flex(local_version, remote_version=remote_version, prs=prs)
+    try:
+        notes = fetch_remote_version_notes() if remote_version != local_version else read_local_version_notes()
+    except Exception as exc:
+        logError(f"version notes fetch failed: {exc}")
+        notes = read_local_version_notes()
+    return build_version_check_flex(local_version, remote_version=remote_version, prs=prs, version_notes=notes)
 
 
 def update_from_git():
