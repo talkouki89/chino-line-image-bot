@@ -33,6 +33,7 @@
 │   └── core/            # 共用工具：Flex 模板、作品模板、Freeimage.host、X 解析
 ├── CHRLINE/             # CHRLINE-Patch client
 ├── CHRLINE-Thrift/      # CHRLINE-Thrift definitions
+├── docs/                # 開發文件與 line_api_compat API 參考
 ├── json/                # Bot 狀態資料
 ├── tag/                 # 使用者標籤資料
 ├── help/                # 舊文字版指令說明
@@ -57,6 +58,8 @@ python -m pip install -r requirements.txt
 - [PicImageSearch](https://github.com/kitUIN/PicImageSearch)
 
 `main.py` 不直接呼叫 CHRLINE 的原始 dict/list 結構，而是透過 `line_api_compat.py` 保留原本 `cl.sendMessage(...)`、`op.message.text` 等舊寫法，降低遷移成本。
+
+如果需要自己寫插件或直接參考相容層 API，可以查看 [docs/](docs/README.md)。裡面已把 `line_api_compat.py` 拆成登入與輪詢、好友與群組、訊息與媒體、E2EE 圖片下載、資料結構等多份文件。
 
 ## 設定
 
