@@ -84,55 +84,6 @@ Creator=
 
 # [選填] 後台通知聊天室/群組 ID。登入、重啟、錯誤通知會發到這裡。
 Dio_GID=
-
-# [選填] PicImageSearch proxy，例如 http://127.0.0.1:7890。一般不用填。
-PICSEARCH_PROXIES=
-
-# [選填] PicImageSearch timeout 秒數。網路慢或 ExHentai 常 timeout 可調高。
-PICSEARCH_TIMEOUT=60
-
-# [選填] 是否驗證 SSL。一般保持 true。
-PICSEARCH_VERIFY_SSL=true
-
-# [選填] Ascii2D 入口清單，逗號分隔。官方站被擋時可加可用代理入口。
-ASCII2D_BASE_URLS=https://ascii2d.net
-
-# [選填] E-Hentai cookie。使用「回覆搜4」遇到限制時才需要。
-EHENTAI_COOKIES=
-
-# [選填] ExHentai cookie。使用「回覆搜5」通常需要。
-EXHENTAI_COOKIES=
-
-# [選填] nHentai cookie。遇到 403 或個人化結果再填。
-NHENTAI_COOKIE=
-
-# [選填] yt-dlp cookie 檔案路徑。下載需要登入或年齡限制內容時使用。
-YTDLP_COOKIES_FILE=cookies.txt
-
-# [選填] 是否啟用 plugins/ 熱載入。建議保持 true。
-HOT_RELOAD_PLUGINS=true
-
-# [不建議改動] LINE 裝置類型。改錯可能導致登入或 sync 失敗。
-CHRLINE_DEVICE=DESKTOPWIN
-
-# [不建議改動] LINE app version。留空使用 CHRLINE 預設。
-CHRLINE_VERSION=
-
-# [選填] CHRLINE debug log。排查 API 問題時才改 true。
-CHRLINE_DEBUG=false
-
-# [不建議改動] 是否使用 Thrift。
-CHR_USE_THRIFT=True
-
-# [不建議改動] CHRLINE 內部 TMore 行為。
-CHR_TMORE_FORCE=False
-
-# [不建議改動] LINE API domain。除非 LINE endpoint 改版或測試特殊環境，否則不要改。
-LINE_HOST_DOMAIN=https://ga2.line.naver.jp
-LINE_OBS_DOMAIN=https://obs.line-apps.com
-LINE_API_DOMAIN=https://api.line.me
-LINE_ACCESS_DOMAIN=https://access.line.me
-LINE_BIZ_TIMELINE_DOMAIN=https://ga2.line.naver.jp/mh
 ```
 
 ### Runtime JSON
@@ -245,6 +196,8 @@ def handle(ctx):
 
 - `圖搜說明`
 - `功能狀態`
+- `版本檢查`
+- `版本更新`
 - `回覆搜1` ~ `回覆搜11`
 - `模板搜1` ~ `模板搜3`
 - `x;URL`
@@ -264,6 +217,15 @@ def handle(ctx):
 - `lg`
 - `pic:about`
 - `pic:reb`
+
+## 版本檢查與更新
+
+專案根目錄有 `VERSION` 檔案，用來判斷目前版本。每次合併 PR 或發布更新時，請同步更新 `VERSION`。
+
+- `版本檢查`：讀取本機與 GitHub `master` 的 `VERSION`，若有新版會顯示最近合併 PR 的摘要。
+- `版本更新`：管理員限定，會執行 `git fetch` 與 `git pull --ff-only origin master`。如果本機有未提交改動，會拒絕更新，避免覆蓋資料。
+
+更新完成後，請重啟 Bot 才會載入新版程式。
 
 ## LIFF 設定
 

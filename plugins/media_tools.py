@@ -149,7 +149,6 @@ def handle_random_lolicon(ctx, r18=0, exclude_ai=False):
         args=(ctx, r18, exclude_ai),
         daemon=True,
     ).start()
-    ctx.cl.relatedMessage(ctx.to, "抽圖請求已送出，圖片讀取中。", ctx.msg_id)
     return True
 
 

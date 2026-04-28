@@ -12,6 +12,7 @@
     "engine_yandex": true,
     "engine_ggjav": true,
     "freeimage_upload": true,
+    "group_min_member_check": true,
     "help_templates": true,
     "image_draw_template": true,
     "jmcomic": true,
