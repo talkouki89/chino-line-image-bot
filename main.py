@@ -509,16 +509,6 @@ def update_from_git():
     if branch != "master":
         return False, False, f"目前分支是 {branch}，請切回 master 後再更新。"
 
-    status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=ROOT_DIR,
-        text=True,
-        capture_output=True,
-        check=True,
-    ).stdout.strip()
-    if status:
-        return False, False, "工作區有未提交變更，為避免覆蓋資料，已取消更新。"
-
     subprocess.run(["git", "fetch", "origin", "master"], cwd=ROOT_DIR, check=True)
     result = subprocess.run(
         ["git", "pull", "--ff-only", "origin", "master"],
