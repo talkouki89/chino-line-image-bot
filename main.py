@@ -50,7 +50,9 @@ REMOTE_VERSION_API_URL = "https://api.github.com/repos/talkouki89/chino-line-ima
 REMOTE_VERSION_NOTES_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION_NOTES.md"
 REMOTE_VERSION_NOTES_API_URL = "https://api.github.com/repos/talkouki89/chino-line-image-bot/contents/VERSION_NOTES.md?ref=master"
 GITHUB_PULLS_API = "https://api.github.com/repos/talkouki89/chino-line-image-bot/pulls?state=closed&base=master&sort=updated&direction=desc&per_page=5"
-LIFF_ALLOW_MESSAGE = "請Bot允許liff line://app/1660845055-GMJrEOVY?type=text&text=LiffOk"
+LIFF_ID = "2009929108-vOiudUbo"
+LIFF_URL = f"line://app/{LIFF_ID}"
+LIFF_ALLOW_MESSAGE = f"請Bot允許liff {LIFF_URL}?type=text&text=LiffOk"
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(TAG_DIR, exist_ok=True)
@@ -134,8 +136,7 @@ DEFAULT_BOT_DISPLAY_NAME = "智乃搜圖機器人🍥"
 DEFAULT_BOT_STATUS_MESSAGE = f"使用請輸入 圖搜說明\nGitHub: {GITHUB_URL}\n作者: 智乃妹妹"
 DEFAULT_AUTO_FRIEND_MESSAGE = (
     "感謝加入智乃搜圖機器人٩(ˊᗜˋ*)و\n\n"
-    "建議把我邀請到群組使用，圖片解析會比私訊穩定。\n"
-    "私訊可能因為 E2EE/Letter Sealing 無法下載圖片。\n\n"
+    "可在私訊或群組中回覆圖片使用圖搜功能。\n\n"
     "使用方式：輸入「圖搜說明」查看指令\n"
     f"GitHub：{GITHUB_URL}\n\n"
     "遇到 bug 可以開 issue。\n"
@@ -215,7 +216,7 @@ def ChinoRestart():
     
 def sendTemplate(to, data):
     """Send a LIFF message through the configured LIFF id."""
-    result = cl.sendLiff(to, data, liffId='1660845055-GMJrEOVY')
+    result = cl.sendLiff(to, data, liffId=LIFF_ID)
     if is_liff_error(result):
         alt_text = template_alt_text(data)
         logError(f"LIFF template send failed: {result}")
