@@ -32,6 +32,7 @@ OTHER_FEATURE_KEYS = [
     "pixiv",
     "xslist",
     "auto_friend",
+    "group_min_member_check",
     "announcement_notify",
 ]
 
@@ -62,7 +63,7 @@ def build_help_flex(flags, is_admin=False):
         "",
         "其他功能",
         "抽圖 / 隨機圖 / 隨機無ai / r18色圖 / r18無ai",
-        "#圖片上傳 / 功能狀態",
+        "#圖片上傳 / 功能狀態 / 版本檢查",
         "",
         f"功能狀態：{feature_status_text(flags)}",
     ]

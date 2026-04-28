@@ -130,6 +130,12 @@ FEATURE_DEFINITIONS = [
         "commands": "自動處理好友事件",
     },
     {
+        "key": "group_min_member_check",
+        "name": "最低入群人數",
+        "description": "Bot 被邀請入群時檢查最低人數，門檻由 .env 的 GROUP_MIN_MEMBERS 設定。",
+        "commands": "邀請入群事件",
+    },
+    {
         "key": "announcement_notify",
         "name": "公告通知",
         "description": "群組公告被建立時，自動回報公告內容。",

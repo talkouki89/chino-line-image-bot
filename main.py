@@ -33,6 +33,7 @@ import re
 import asyncio
 import subprocess
 import traceback
+import urllib.request
 
 # Project paths. Runtime json/tag/plugin folders are created on startup.
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -41,6 +42,9 @@ TAG_DIR = os.path.join(ROOT_DIR, "tag")
 PLUGIN_DIR = os.path.join(ROOT_DIR, "plugins")
 ERROR_LOG = os.path.join(ROOT_DIR, "errorLog.txt")
 FEATURE_FLAGS_PATH = os.path.join(DATA_DIR, "features.json")
+VERSION_FILE = os.path.join(ROOT_DIR, "VERSION")
+REMOTE_VERSION_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION"
+GITHUB_PULLS_API = "https://api.github.com/repos/talkouki89/chino-line-image-bot/pulls?state=closed&base=master&sort=updated&direction=desc&per_page=5"
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(TAG_DIR, exist_ok=True)
@@ -76,6 +80,15 @@ def env_bool(name, default=False):
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
+def env_int(name, default):
+    """Parse .env integer values with a safe fallback."""
+    raw = os.getenv(name)
+    try:
+        return int(raw) if raw not in (None, "") else int(default)
+    except (TypeError, ValueError):
+        return int(default)
+
+
 # Environment and bot configuration.
 load_dotenv(os.path.join(ROOT_DIR, '.env'))
 account = os.getenv('LINE_ACCOUNT')
@@ -87,6 +100,8 @@ botcreator = os.getenv('Creator')
 # - background: chat/group id that receives status notifications
 # - datadir["gid"]: current target chat for image-search helper functions
 background = os.getenv('Dio_GID')
+GROUP_MIN_MEMBER_CHECK = env_bool("GROUP_MIN_MEMBER_CHECK", True)
+GROUP_MIN_MEMBERS = env_int("GROUP_MIN_MEMBERS", 10)
 
 # LINE login happens here. Editing main.py after this point still requires a
 # process restart; use plugins/ for commands that should hot-reload.
@@ -111,8 +126,18 @@ if botcreator not in ban["admin"]:
 
 DEFAULT_BOT_DISPLAY_NAME = "智乃搜圖機器人🍥"
 DEFAULT_BOT_STATUS_MESSAGE = f"使用請輸入 圖搜說明\nGitHub: {GITHUB_URL}\n作者: 智乃妹妹"
+DEFAULT_AUTO_FRIEND_MESSAGE = (
+    "感謝加入智乃搜圖機器人٩(ˊᗜˋ*)و\n\n"
+    "建議把我邀請到群組使用，圖片解析會比私訊穩定。\n"
+    "私訊可能因為 E2EE/Letter Sealing 無法下載圖片。\n\n"
+    "使用方式：輸入「圖搜說明」查看指令\n"
+    f"GitHub：{GITHUB_URL}\n\n"
+    "遇到 bug 可以開 issue。\n"
+    "想加新功能也歡迎發 PR (๑•̀ㅂ•́)و✧"
+)
 BOT_DISPLAY_NAME = os.getenv("BOT_DISPLAY_NAME", DEFAULT_BOT_DISPLAY_NAME)
 BOT_STATUS_MESSAGE = os.getenv("BOT_STATUS_MESSAGE", DEFAULT_BOT_STATUS_MESSAGE).replace("\\n", "\n")
+AUTO_FRIEND_MESSAGE = os.getenv("AUTO_FRIEND_MESSAGE", DEFAULT_AUTO_FRIEND_MESSAGE).replace("\\n", "\n")
 
 try:
     cl.updateProfileAttribute(2, BOT_DISPLAY_NAME)
@@ -259,15 +284,7 @@ def extract_flex_text(node):
 
 def build_auto_friend_message():
     """Message sent when a user adds the bot as a friend."""
-    return (
-        "感謝加入智乃搜圖機器人٩(ˊᗜˋ*)و\n\n"
-        "建議把我邀請到群組使用，圖片解析會比私訊穩定。\n"
-        "私訊可能因為 E2EE/Letter Sealing 無法下載圖片。\n\n"
-        "使用方式：輸入「圖搜說明」查看指令\n"
-        f"GitHub：{GITHUB_URL}\n\n"
-        "遇到 bug 可以開 issue。\n"
-        "想加新功能也歡迎發 PR (๑•̀ㅂ•́)و✧"
-    )
+    return AUTO_FRIEND_MESSAGE
 
 def Runtime(secs):
     """Format process uptime for the ren command."""
@@ -391,6 +408,123 @@ def get_chat_member_count(chat_id):
     return "未知"
 
 
+def should_enforce_group_min_members():
+    """Return whether group invite member-count checks are enabled."""
+    return GROUP_MIN_MEMBER_CHECK and is_feature_enabled("group_min_member_check")
+
+
+def member_count_passes_minimum(member_count):
+    if not should_enforce_group_min_members():
+        return True
+    if not isinstance(member_count, int):
+        # Unknown counts should not unexpectedly kick the bot after an API change.
+        return True
+    return member_count >= GROUP_MIN_MEMBERS
+
+
+def read_local_version():
+    try:
+        return read_text_file(VERSION_FILE).strip()
+    except FileNotFoundError:
+        return "0.0.0"
+
+
+def fetch_text(url, timeout=15):
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "chino-line-image-bot",
+            "Accept": "application/vnd.github+json,text/plain,*/*",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
+def fetch_remote_version():
+    return fetch_text(REMOTE_VERSION_URL).strip()
+
+
+def fetch_recent_merged_prs():
+    try:
+        data = json.loads(fetch_text(GITHUB_PULLS_API))
+    except Exception as exc:
+        logError(f"version PR fetch failed: {exc}")
+        return []
+    prs = []
+    for item in data:
+        if not item.get("merged_at"):
+            continue
+        body = (item.get("body") or "").strip().replace("\r", "")
+        summary = body.split("\n", 1)[0][:120] if body else ""
+        prs.append({
+            "number": item.get("number"),
+            "title": item.get("title") or "",
+            "summary": summary,
+        })
+    return prs
+
+
+def build_version_check_text():
+    local_version = read_local_version()
+    try:
+        remote_version = fetch_remote_version()
+    except Exception as exc:
+        logError(f"version check failed: {exc}")
+        return f"版本檢查失敗：無法讀取遠端 VERSION。\n目前版本：{local_version}"
+
+    lines = [
+        "版本檢查",
+        f"目前版本：{local_version}",
+        f"遠端版本：{remote_version}",
+    ]
+    if remote_version == local_version:
+        lines.append("目前已是最新版本。")
+    else:
+        lines.append("發現新版本。若要更新，請管理員輸入：版本更新")
+        prs = fetch_recent_merged_prs()
+        if prs:
+            lines.append("\n最近更新內容：")
+            for pr in prs[:5]:
+                lines.append(f"#{pr['number']} {pr['title']}")
+                if pr["summary"]:
+                    lines.append(f"  {pr['summary']}")
+    return "\n".join(lines)
+
+
+def update_from_git():
+    branch = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    if branch != "master":
+        return False, f"目前分支是 {branch}，請切回 master 後再更新。"
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    if status:
+        return False, "工作區有未提交變更，為避免覆蓋資料，已取消更新。"
+
+    subprocess.run(["git", "fetch", "origin", "master"], cwd=ROOT_DIR, check=True)
+    result = subprocess.run(
+        ["git", "pull", "--ff-only", "origin", "master"],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return False, (result.stderr or result.stdout or "git pull failed").strip()
+    return True, (result.stdout or "已更新到最新版本。").strip()
+
+
 def parse_mentioned_mids(content_metadata):
     """Return MID values from LINE mention metadata."""
     if not content_metadata or "MENTION" not in content_metadata:
@@ -484,22 +618,25 @@ def PicBot(op):
                     cl.sendMessage(op.param1, "感謝創作者邀我入群(⁎⁍̴̛ᴗ⁍̴̛⁎)")
                 else:
                     group = cl.getChats(op.param1)
-                    if len(group.members) >= 10:
+                    member_count = get_chat_member_count(op.param1)
+                    if member_count_passes_minimum(member_count):
                         cl.acceptChatInvitation(op.param1)
                         cl.sendMessage(op.param1, "感謝您邀請我入群\n此為智乃圖搜器~\n作者友資:")
                         cl.sendContact(
                             op.param1, botcreator)
                         cl.sendMessage(op.param1, "輸入圖搜說明可以查看指令")
-                        cl.sendMessage(background, "通知邀請群組:\n" + str(group.name)+"群組 \n" + str(
-                            group.id) + "\n邀請者:\n" + contact1.displayName + "\nMid:\n" + contact1.mid)
+                        group_name, group_id = get_chat_summary(op.param1)
+                        safe_send_background("通知邀請群組:\n" + str(group_name)+"群組 \n" + str(
+                            group_id) + "\n邀請者:\n" + contact1.displayName + "\nMid:\n" + contact1.mid)
                     else:
                         cl.acceptChatInvitation(op.param1)
                         cl.sendMessage(
-                            op.param1, "群組人數小於10人\n機器將離開群組\n如有特殊需求請洽以下友資")
+                            op.param1, f"群組人數小於{GROUP_MIN_MEMBERS}人\n機器將離開群組\n如有特殊需求請洽以下友資")
                         cl.sendContact(
                             op.param1, botcreator)
-                        cl.sendMessage(background, "群組人數小於10人:\n" + str(group.name)+"群組 \n" + str(
-                            group.id) + "\n邀請者:\n" + contact1.displayName + "\nMid:\n" + contact1.mid)
+                        group_name, group_id = get_chat_summary(op.param1)
+                        safe_send_background(f"群組人數小於{GROUP_MIN_MEMBERS}人:\n" + str(group_name)+"群組 \n" + str(
+                            group_id) + "\n邀請者:\n" + contact1.displayName + "\nMid:\n" + contact1.mid)
                         cl.deleteSelfFromChat(op.param1)
         if op.type == 30 and is_feature_enabled("announcement_notify"):
             update_type = op.param3
@@ -570,6 +707,20 @@ def PicBot(op):
                 enabled = toggle_feature_command(feature_key)
                 state = "開啟" if enabled else "關閉"
                 cl.relatedMessage(to, f"{FEATURE_INDEX[feature_key]['name']} 已{state}", op.message.id)
+                return
+            if cmd == "版本檢查":
+                cl.relatedMessage(to, build_version_check_text(), op.message.id)
+                return
+            if cmd == "版本更新":
+                if not is_manager(sender):
+                    cl.relatedMessage(to, "此功能只有管理員可以使用。", op.message.id)
+                    return
+                cl.relatedMessage(to, "開始更新版本，請稍候。", op.message.id)
+                ok, message = update_from_git()
+                if ok:
+                    cl.relatedMessage(to, f"版本更新完成。\n{message}\n請重啟 bot 套用新程式。", op.message.id)
+                else:
+                    cl.relatedMessage(to, f"版本更新失敗。\n{message}", op.message.id)
                 return
             if plugins.dispatch(plugin_context):
                 # A hot-reload plugin handled this message. Stop here so built-in
