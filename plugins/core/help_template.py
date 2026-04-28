@@ -6,7 +6,7 @@ from plugins.core.features import FEATURE_DEFINITIONS, is_enabled
 GITHUB_URL = "https://github.com/talkouki89/chino-line-image-bot"
 GITHUB_PULLS_URL = "https://github.com/talkouki89/chino-line-image-bot/pulls?q=is%3Apr+is%3Amerged"
 CREATOR_NAME = "智乃妹妹"
-LIFF_COMMAND_URL = "line://app/1660845055-GMJrEOVY?type=text&text={text}&auto=yes"
+LIFF_COMMAND_URL = "line://app/2009929108-vOiudUbo?type=text&text={text}&auto=yes"
 
 IMAGE_ENGINE_KEYS = [
     "engine_saucenao",

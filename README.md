@@ -6,15 +6,11 @@
 
 本專案是第三方 LINE Bot，並非 LINE 官方工具。使用非官方 API、自動化登入或長時間自動化操作，都可能違反服務條款或觸發風控機制，導致帳號被限制、登出或封鎖。請自行評估風險，建議使用專門的測試帳號，不要使用重要主帳號運行。
 
-## 使用建議
-
-因為 LINE 私訊常啟用 E2EE/Letter Sealing，第三方 API 不一定能解密或下載私訊圖片原始檔，可能導致圖片反搜、圖片上傳等功能無法取得圖片。建議主要在群組中使用本 Bot；如果必須在私訊使用，請先確認該聊天室的 E2EE 設定與圖片是否能被 Bot 下載。
-
 ## 主要功能
 
 - LINE 登入、收訊與回覆
 - 圖片反搜：SauceNAO、Ascii2D、TraceMoe、AnimeTrace、E-Hentai、ExHentai、Copyseeker、Yandex、Iqdb
-- LINE Flex Message / LIFF 搜尋結果模板
+- LINE Flex Message / LIFF 搜尋結果模板，支援回覆私訊 E2EE 圖片進行圖搜
 - X/Twitter、YouTube 下載相關指令
 - nHentai、紳士漫畫、禁漫天堂、Pixiv 編號解析模板
 - Freeimage.host 圖床上傳
@@ -220,18 +216,18 @@ def handle(ctx):
 
 ## 版本檢查與更新
 
-專案根目錄有 `VERSION` 檔案，用來判斷目前版本。每次合併 PR 或發布更新時，請同步更新 `VERSION`。
+專案根目錄有 `VERSION` 檔案，用來判斷目前版本；`VERSION_NOTES.md` 用來顯示版本更新內容。每次合併 PR 或發布更新時，請同步更新這兩個檔案。
 
-- `版本檢查`：讀取本機與 GitHub `master` 的 `VERSION`，若有新版會顯示最近合併 PR 的摘要。
-- `版本更新`：管理員限定，會執行 `git fetch` 與 `git pull --ff-only origin master`。如果本機有未提交改動，會拒絕更新，避免覆蓋資料。
+- `版本檢查`：讀取本機與 GitHub `master` 的 `VERSION` / `VERSION_NOTES.md`，若有新版會顯示最近合併 PR 與版本更新內容。
+- `版本更新`：管理員限定，會執行 `git fetch` 與 `git pull --ff-only origin master`。更新成功後 Bot 會自動重啟套用新程式。
 
-更新完成後，請重啟 Bot 才會載入新版程式。
+若本機檔案和遠端更新真的衝突，`git pull` 會回傳錯誤並停止。
 
 ## LIFF 設定
 
-目前範例使用的 LIFF ID 來自第三方模板專案 [MISAKA_LIFF](https://github.com/Sakuya0502/MISAKA_LIFF)。如果你不想使用別人的 LIFF，可以自行建立 LINE LIFF App，並把程式內的 LIFF ID 換成自己的。
+目前預設使用本專案搭配的 LIFF：`line://app/2009929108-vOiudUbo`。
 
-第一次使用模板功能時，建議先輸入 `Allowliff` 讓帳號授權 LIFF 權限。
+LIFF 專案網址：[chino-liff](https://github.com/talkouki89/chino-liff)。可以直接使用這個 LIFF，也可以自行 clone 後建立自己的 LINE LIFF App，再把程式內的 LIFF ID 換成自己的。
 
 ## imsearch / Soutubot
 
@@ -257,7 +253,7 @@ IMSEARCH_TOKEN=
 - [CHRLINE-Patch](https://github.com/WEDeach/CHRLINE-Patch)
 - [CHRLINE-Thrift](https://github.com/DeachSword/CHRLINE-Thrift)
 - [PicImageSearch](https://github.com/kitUIN/PicImageSearch)
-- [MISAKA_LIFF](https://github.com/Sakuya0502/MISAKA_LIFF)
+- [chino-liff](https://github.com/talkouki89/chino-liff)
 - [lolishinshi/imsearch](https://github.com/lolishinshi/imsearch)
 - [jmcomic](https://github.com/hect0x7/JMComic-Crawler-Python)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)

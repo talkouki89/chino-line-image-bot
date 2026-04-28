@@ -450,7 +450,7 @@ class LINE:
     def sendReplyMessage(self, relatedMessageId, to, text, contentMetadata=None, contentType=0):
         return self.sendMessage(to, text, contentMetadata or {}, contentType, relatedMessageId)
 
-    def sendLiff(self, to, messages, liffId="1660845055-GMJrEOVY"):
+    def sendLiff(self, to, messages, liffId="2009929108-vOiudUbo"):
         return self._client.sendLiff(to, messages, liffId=liffId)
 
     def sendContact(self, to: str, mid: str, displayName: Optional[str] = None):
