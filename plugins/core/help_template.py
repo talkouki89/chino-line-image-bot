@@ -4,6 +4,7 @@ from plugins.core.features import FEATURE_DEFINITIONS, is_enabled
 
 
 GITHUB_URL = "https://github.com/talkouki89/chino-line-image-bot"
+GITHUB_PULLS_URL = "https://github.com/talkouki89/chino-line-image-bot/pulls?q=is%3Apr+is%3Amerged"
 CREATOR_NAME = "智乃妹妹"
 LIFF_COMMAND_URL = "line://app/1660845055-GMJrEOVY?type=text&text={text}&auto=yes"
 
@@ -33,6 +34,7 @@ OTHER_FEATURE_KEYS = [
     "xslist",
     "auto_friend",
     "group_min_member_check",
+    "search_quota",
     "announcement_notify",
 ]
 
@@ -40,8 +42,6 @@ OTHER_FEATURE_KEYS = [
 def build_help_flex(flags, is_admin=False):
     lines = [
         "智乃搜圖機器人",
-        "",
-        "初次使用建議先輸入 Allowliff，並允許 LIFF 權限。",
         "",
         "圖片搜尋",
         "回覆搜1 SauceNAO",
@@ -63,12 +63,17 @@ def build_help_flex(flags, is_admin=False):
         "",
         "其他功能",
         "抽圖 / 隨機圖 / 隨機無ai / r18色圖 / r18無ai",
-        "#圖片上傳 / 功能狀態 / 版本檢查",
-        "",
-        f"功能狀態：{feature_status_text(flags)}",
+        "#圖片上傳",
     ]
     if is_admin:
-        lines.extend(["", "管理員", "功能設定 / 功能切換 <key> / lg / pic:reb / reb @bot"])
+        lines.extend([
+            "",
+            "管理員",
+            "功能狀態 / 功能設定 / 功能切換 <key>",
+            "版本檢查 / 版本更新",
+            "lg / pic:reb / reb @bot",
+            f"功能狀態：{feature_status_text(flags)}",
+        ])
     return simple_flex("ChinoBot 指令說明", lines, footer_buttons=[uri_button("開啟 GitHub", GITHUB_URL)])
 
 
@@ -102,6 +107,36 @@ def build_status_flex(flags):
         status_bubble("已開啟", enabled, "ON"),
         status_bubble("已關閉", disabled, "OFF"),
     ])
+
+
+def build_version_check_flex(local_version, remote_version=None, prs=None, error=None):
+    prs = prs or []
+    has_update = bool(remote_version and remote_version != local_version)
+    if error:
+        lines = [
+            "版本檢查",
+            f"目前版本：{local_version}",
+            f"狀態：{error}",
+        ]
+    else:
+        lines = [
+            "版本檢查",
+            f"目前版本：{local_version}",
+            f"遠端版本：{remote_version}",
+            "狀態：發現新版本。" if has_update else "狀態：目前已是最新版本。",
+        ]
+        if prs:
+            lines.extend(["", "最近更新內容"])
+            for pr in prs[:5]:
+                line = f"#{pr['number']} {pr['title']}"
+                if pr.get("summary"):
+                    line += f"\n{pr['summary']}"
+                lines.append(line)
+
+    buttons = [uri_button("查看新功能 PR", GITHUB_PULLS_URL)]
+    if has_update:
+        buttons.append(command_button("版本更新", "版本更新"))
+    return simple_flex("ChinoBot 版本檢查", lines, footer_buttons=buttons)
 
 
 def status_bubble(title_text, names, marker):
@@ -259,6 +294,10 @@ def uri_button(label, uri):
             "uri": uri,
         },
     }
+
+
+def command_button(label, command):
+    return uri_button(label, liff_command_url(command))
 
 
 def liff_command_url(command):

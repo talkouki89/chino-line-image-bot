@@ -7,6 +7,7 @@ import requests
 from dotenv import load_dotenv
 from yt_dlp import YoutubeDL
 
+from plugins.core.cooldown import check_draw_cooldown
 from plugins.core.x import detect_file_type, fetch_media_urls
 
 
@@ -40,15 +41,27 @@ def handle(ctx):
     if ctx.cmd.startswith("ytmp4:"):
         return handle_ytdlp(ctx)
     if ctx.cmd in RANDOM_IMAGE_COMMANDS:
+        if not check_lolicon_cooldown(ctx):
+            return True
         r18, exclude_ai = RANDOM_IMAGE_COMMANDS[ctx.cmd]
         return handle_random_lolicon(ctx, r18=r18, exclude_ai=exclude_ai)
     if ctx.cmd.startswith(TAG_IMAGE_PREFIXES):
+        if not check_lolicon_cooldown(ctx):
+            return True
         return handle_lolicon_tags(ctx)
     if ctx.cmd == "誰標我":
         return handle_who_mentioned_me(ctx)
     if ctx.cmd == "清空標註":
         return handle_clear_mentions(ctx)
     return False
+
+
+def check_lolicon_cooldown(ctx):
+    allowed, remaining = check_draw_cooldown(ctx.sender)
+    if not allowed:
+        ctx.reply(f"抽圖冷卻中，請 {remaining} 秒後再試。")
+        return False
+    return True
 
 
 def handle_x_url(ctx):

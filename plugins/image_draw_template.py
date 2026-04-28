@@ -2,7 +2,6 @@ FEATURE_KEY = "image_draw_template"
 
 from urllib.parse import quote
 
-
 LIFF_COMMAND_URL = "line://app/1660845055-GMJrEOVY?type=text&text={text}&auto=yes"
 
 

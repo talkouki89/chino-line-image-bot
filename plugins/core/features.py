@@ -136,6 +136,12 @@ FEATURE_DEFINITIONS = [
         "commands": "邀請入群事件",
     },
     {
+        "key": "search_quota",
+        "name": "圖搜次數限制",
+        "description": "開啟後一般使用者圖搜會扣次數；關閉後不看次數。管理員一律不扣次數。",
+        "commands": "回覆搜1 ~ 回覆搜11",
+    },
+    {
         "key": "announcement_notify",
         "name": "公告通知",
         "description": "群組公告被建立時，自動回報公告內容。",
