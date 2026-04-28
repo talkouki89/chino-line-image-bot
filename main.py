@@ -31,6 +31,7 @@ import ast
 import os
 import re
 import asyncio
+import base64
 import subprocess
 import traceback
 import urllib.request
@@ -44,6 +45,7 @@ ERROR_LOG = os.path.join(ROOT_DIR, "errorLog.txt")
 FEATURE_FLAGS_PATH = os.path.join(DATA_DIR, "features.json")
 VERSION_FILE = os.path.join(ROOT_DIR, "VERSION")
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION"
+REMOTE_VERSION_API_URL = "https://api.github.com/repos/talkouki89/chino-line-image-bot/contents/VERSION?ref=master"
 GITHUB_PULLS_API = "https://api.github.com/repos/talkouki89/chino-line-image-bot/pulls?state=closed&base=master&sort=updated&direction=desc&per_page=5"
 LIFF_ALLOW_MESSAGE = "請Bot允許liff line://app/1660845055-GMJrEOVY?type=text&text=LiffOk"
 
@@ -444,6 +446,14 @@ def fetch_text(url, timeout=15):
 
 
 def fetch_remote_version():
+    try:
+        payload = json.loads(fetch_text(REMOTE_VERSION_API_URL))
+        content = payload.get("content", "")
+        encoding = payload.get("encoding", "")
+        if encoding == "base64" and content:
+            return base64.b64decode(content).decode("utf-8", errors="replace").strip()
+    except Exception as exc:
+        logError(f"version API fetch failed, fallback to raw URL: {exc}")
     return fetch_text(REMOTE_VERSION_URL).strip()
 
 
