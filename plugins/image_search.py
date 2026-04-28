@@ -14,6 +14,12 @@ from PicImageSearch.sync import (
 )
 
 from plugins.core.template import Chino
+from plugins.core.web_image_search import (
+    format_ggjav_result,
+    format_soutubot_result,
+    search_ggjav_pornstar,
+    search_soutubot,
+)
 
 
 FEATURE_KEY = "image_search"
@@ -30,6 +36,8 @@ ENGINE_FEATURE_KEYS = {
     "Yandex": "engine_yandex",
     "Iqdb": "engine_iqdb",
     "AnimeTrace": "engine_animetrace",
+    "Soutubot": "engine_soutubot",
+    "GGJAV": "engine_ggjav",
 }
 
 SEARCH_COMMANDS = {
@@ -42,6 +50,8 @@ SEARCH_COMMANDS = {
     "回覆搜7": ("Yandex.jpg", "Yandex", "Yandex"),
     "回覆搜8": ("Iqdb.jpg", "Iqdb", "Iqdb"),
     "回覆搜9": ("AnimeTrace.jpg", "AnimeTrace", "AnimeTrace"),
+    "回覆搜10": ("Soutubot.jpg", "Soutubot", "Soutubot"),
+    "回覆搜11": ("GGJAV.jpg", "GGJAV 女優辨識", "GGJAV"),
 }
 
 TEMPLATE_COMMANDS = {
@@ -253,6 +263,12 @@ def search_as_text(engine, image_path):
         else:
             text += "\n\n可能角色: N/A"
         return text + "\n\n作者:智乃妹妹٩(ˊᗜˋ*)و", None
+
+    if engine == "Soutubot":
+        return format_soutubot_result(search_soutubot(image_path)), None
+
+    if engine == "GGJAV":
+        return format_ggjav_result(search_ggjav_pornstar(image_path)), None
 
     raise ValueError(f"Unknown image search engine: {engine}")
 

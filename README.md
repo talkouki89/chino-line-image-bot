@@ -200,26 +200,112 @@ def handle(ctx):
 
 如果要關閉外掛熱載入，設定 `HOT_RELOAD_PLUGINS=false`。
 
+### 移除不需要的功能
+
+大部分獨立功能都放在 `plugins/` 內。如果你不需要某個功能，可以直接移除或改名對應的外掛檔案，Bot 收到下一則訊息時就不會再載入它。
+
+簡單做法：
+
+1. 先停止 Bot，或確認 `HOT_RELOAD_PLUGINS=true`。
+2. 到 `plugins/` 找到對應檔案，例如：
+   - `plugins/wnacg.py`：`w:數字`
+   - `plugins/jmcomic_lookup.py`：`c:數字`
+   - `plugins/pixiv_lookup.py`：`p:數字`
+   - `plugins/nhentai.py`：`n:數字` / `n:popular`
+   - `plugins/media_tools.py`：隨機圖、R18 圖、X/Twitter、yt-dlp
+   - `plugins/freeimage_upload.py`：`#圖片上傳`
+   - `plugins/image_draw_template.py`：抽圖模板
+3. 不想刪除原始碼時，可以把檔名改成底線開頭，例如 `plugins/_wnacg.py`。PluginManager 會略過底線開頭的檔案。
+4. 確認功能不再需要後，再刪除檔案或提交改名。
+
+如果只是暫時不想開放功能，不建議刪檔，建議使用管理員開關。
+
+### 功能開關
+
+管理員可以在 LINE 裡輸入 `功能設定`，用模板按鈕開啟或關閉功能。也可以直接輸入：
+
+```text
+功能切換 <key>
+```
+
+例如：
+
+```text
+功能切換 nhentai
+功能切換 media_tools
+功能切換 engine_saucenao
+功能切換 announcement_notify
+```
+
+想查看目前狀態可以輸入 `功能狀態`。功能開關會保存到 `json/features.json`，這個檔案屬於本機 runtime 狀態，預設不提交到 Git。
+
 ## 常用指令
 
-完整指令請看 `help/help.txt`、`help/help0.txt`、`help/help1.txt`、`main.py` 與 `plugins/` 內的指令分支。常見功能包含：
+實際指令請以 `main.py` 和 `plugins/` 內指令為準。常見功能包含：
 
-- `回覆搜1` ~ `回覆搜9`
+- `圖搜說明`
+- `功能狀態`
+- `回覆搜1` ~ `回覆搜11`
 - `模板搜1` ~ `模板搜3`
 - `x;URL`
-- `回覆搜x`
 - `#圖片上傳`
+- `抽圖`
 - `隨機圖`
+- `隨機無ai`
 - `r18色圖`
-- `tag色圖 標籤`
+- `r18無ai`
 - `ytmp4:URL`
 - `n:數字`
 - `n:popular`
 - `w:數字`
 - `c:數字`
 - `p:數字`
+- `xs:關鍵字`
+- `lg`
 - `pic:about`
 - `pic:reb`
+
+## LIFF 設定
+
+目前範例使用的 LIFF ID 來自第三方模板專案 [MISAKA_LIFF](https://github.com/Sakuya0502/MISAKA_LIFF)。如果你不想使用別人的 LIFF，可以自行建立 LINE LIFF App，並把程式內的 LIFF ID 換成自己的。
+
+第一次使用模板功能時，建議先輸入 `Allowliff` 讓帳號授權 LIFF 權限。
+
+## imsearch / Soutubot
+
+`回覆搜10` 預設會嘗試使用 [soutubot.moe](https://soutubot.moe/) 的網頁端點。若網站被 Cloudflare 或其他限制擋住，可以自行部署 [lolishinshi/imsearch](https://github.com/lolishinshi/imsearch)。
+
+```powershell
+docker run -it -v ./imsearch:/root/.config/imsearch aloxaf/imsearch:latest --help
+```
+
+建立索引並啟動 HTTP server 後，在 `.env` 填：
+
+```env
+IMSEARCH_API_URL=http://127.0.0.1:8000
+IMSEARCH_TOKEN=
+```
+
+`imsearch` 是 GPL-3.0 授權的 Rust 專案，本專案不直接內嵌其源碼，避免授權邊界混亂。
+
+## 第三方項目
+
+本專案使用或相容下列第三方項目，請同時遵守各自授權與使用規範：
+
+- [CHRLINE-Patch](https://github.com/WEDeach/CHRLINE-Patch)
+- [CHRLINE-Thrift](https://github.com/DeachSword/CHRLINE-Thrift)
+- [PicImageSearch](https://github.com/kitUIN/PicImageSearch)
+- [MISAKA_LIFF](https://github.com/Sakuya0502/MISAKA_LIFF)
+- [lolishinshi/imsearch](https://github.com/lolishinshi/imsearch)
+- [jmcomic](https://github.com/hect0x7/JMComic-Crawler-Python)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- [Freeimage.host API](https://freeimage.host/page/api)
+
+## 許可證與法律資訊
+
+本專案自身新增的程式碼以 MIT License 授權，詳見 `LICENSE`。倉庫內或依賴中的第三方程式碼、API、網站內容與資料來源，仍適用其原作者或服務提供者的授權與條款。
+
+本專案是第三方 LINE Bot，使用非官方 API 可能造成帳號限制、封鎖或其他風險。使用者需自行承擔使用後果，並確認符合所在地法律、LINE 服務條款、第三方網站條款與內容分級要求。若您不同意上述任一條款，請勿直接或間接使用本項目。
 
 ## 注意事項
 

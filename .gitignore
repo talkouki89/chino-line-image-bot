@@ -19,7 +19,12 @@ ExHentai.jpg
 Copyseeker.jpg
 Yandex.jpg
 Iqdb.jpg
+AnimeTrace.jpg
+Soutubot.jpg
+GGJAV.jpg
+XSList.jpg
 *.mp4
+*.webp
 
 # Runtime bot state / private LINE data
 json/ban.json
