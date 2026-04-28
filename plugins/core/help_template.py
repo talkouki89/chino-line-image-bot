@@ -109,7 +109,7 @@ def build_status_flex(flags):
     ])
 
 
-def build_version_check_flex(local_version, remote_version=None, prs=None, error=None):
+def build_version_check_flex(local_version, remote_version=None, prs=None, error=None, version_notes=""):
     prs = prs or []
     has_update = bool(remote_version and remote_version != local_version)
     if error:
@@ -132,11 +132,26 @@ def build_version_check_flex(local_version, remote_version=None, prs=None, error
                 if pr.get("summary"):
                     line += f"\n{pr['summary']}"
                 lines.append(line)
+        if version_notes:
+            lines.extend(["", "版本更新內容"])
+            lines.extend(version_notes_lines(version_notes))
 
     buttons = [uri_button("查看新功能 PR", GITHUB_PULLS_URL)]
     if has_update:
         buttons.append(command_button("版本更新", "版本更新"))
     return simple_flex("ChinoBot 版本檢查", lines, footer_buttons=buttons)
+
+
+def version_notes_lines(value, limit=10):
+    lines = []
+    for line in str(value).replace("\r", "").split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        lines.append(line.lstrip("#").strip())
+        if len(lines) >= limit:
+            break
+    return lines
 
 
 def status_bubble(title_text, names, marker):

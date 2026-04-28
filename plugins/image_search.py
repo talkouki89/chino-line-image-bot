@@ -444,11 +444,11 @@ def safe_remove(path):
 
 def download_reply_image(ctx, related_message_id, save_name):
     try:
-        return ctx.cl.downloadObjectMsg(related_message_id, saveAs=save_name, objFrom=ctx.to)
+        return ctx.cl.downloadReplyImage(ctx.to, related_message_id, saveAs=save_name, objFrom=ctx.to)
     except Exception as exc:
         if is_private_e2ee_image_context(ctx, exc):
             raise RuntimeError(
-                "私訊 E2EE 圖片目前無法下載原圖。請改到群組使用，或在該聊天室關閉 Letter Sealing/E2EE 後重傳圖片。"
+                "私訊 E2EE 圖片解密失敗。請確認 Bot 已收到該圖片、E2EE 金鑰完整，或重傳圖片後再試。"
             ) from exc
         if is_openchat_download_404(ctx, exc):
             raise RuntimeError("圖片下載失敗：此聊天室可能是 OpenChat，已改用聊天室 ID 判斷下載路徑；請重傳圖片後再試一次。") from exc
@@ -472,7 +472,7 @@ def is_openchat_download_404(ctx, exc):
 def user_facing_error(exc):
     text = str(exc)
     prefixes = (
-        "私訊 E2EE 圖片目前無法下載原圖",
+        "私訊 E2EE 圖片解密失敗",
         "圖片下載失敗：",
     )
     if text.startswith(prefixes):

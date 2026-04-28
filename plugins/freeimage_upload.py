@@ -20,10 +20,10 @@ def handle(ctx):
     tmp_path = make_temp_path(ctx.sender)
     try:
         try:
-            ctx.cl.downloadObjectMsg(related_message_id, saveAs=tmp_path, objFrom=ctx.to)
+            ctx.cl.downloadReplyImage(ctx.to, related_message_id, saveAs=tmp_path, objFrom=ctx.to)
         except Exception as exc:
             if getattr(ctx.msg, "toType", None) == 0:
-                raise RuntimeError("私訊 E2EE 圖片可能無法下載，請改到群組或關閉 E2EE 後重傳。") from exc
+                raise RuntimeError("私訊 E2EE 圖片解密失敗，請確認 Bot 已收到該圖片或重傳後再試。") from exc
             if "Invalid response code: 404" in str(exc) and "/talk/m/" in str(exc):
                 raise RuntimeError("圖片下載失敗：此聊天室可能是 OpenChat，已改用聊天室 ID 判斷下載路徑；請重傳圖片後再試一次。") from exc
             raise
