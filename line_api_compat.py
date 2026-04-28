@@ -406,7 +406,23 @@ class LINE:
     def deleteOtherFromChat(self, to: str, mid) -> Any:
         return self._client.deleteOtherFromChat(to, mid)
 
+    def addFriendByMid(
+        self,
+        mid: str,
+        reference: str = '{"spec":"native","screen":"talkroom:message"}',
+        trackingMetaType: int = 5,
+        trackingMetaHint: Optional[str] = None,
+    ) -> Any:
+        return self._client.addFriendByMid(
+            mid,
+            reference=reference,
+            trackingMetaType=trackingMetaType,
+            trackingMetaHint=trackingMetaHint,
+        )
+
     def findAndAddContactsByMid(self, mid: str, reference: str = '{"screen":"groupMemberList","spec":"native"}') -> Any:
+        if hasattr(self._client, "addFriendByMid"):
+            return self.addFriendByMid(mid, reference=reference)
         return self._client.findAndAddContactsByMid(mid, reference=reference)
 
     def getAllContactIds(self, *args, **kwargs):

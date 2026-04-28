@@ -82,15 +82,17 @@ def handle_reply_search(ctx):
         ctx.reply("請回覆一張圖片再使用圖搜指令。")
         return True
 
-    if not consume_search_quota(ctx):
+    if not has_search_quota(ctx):
         return True
 
+    deducted_quota = False
     try:
         download_reply_image(ctx, related_message_id, save_name)
         result_text, video_url = search_as_text(engine, save_name)
         ctx.cl.relatedMessage(ctx.to, result_text, ctx.msg_id)
         if video_url:
             ctx.cl.sendVideoWithURL(ctx.to, str(video_url))
+        deducted_quota = consume_search_quota(ctx)
     except Exception as exc:
         ctx.log_error(exc)
         message = user_facing_error(exc) or "搜尋失敗,請換個方式或重新搜尋"
@@ -98,7 +100,7 @@ def handle_reply_search(ctx):
     finally:
         safe_remove(save_name)
 
-    finish_search(ctx)
+    finish_search(ctx, deducted_quota)
     return True
 
 
@@ -128,11 +130,21 @@ def handle_template_search(ctx):
     return True
 
 
-def consume_search_quota(ctx):
-    if ctx.is_admin:
+def quota_enabled(ctx):
+    return ctx.is_feature_enabled("search_quota")
+
+
+def has_search_quota(ctx):
+    if ctx.is_admin or not quota_enabled(ctx):
         return True
     if ctx.settings["days"] <= 0:
         ctx.reply("沒次數了٩(ˊᗜˋ*)و\n請找智乃添加٩(ˊᗜˋ*)و")
+        return False
+    return True
+
+
+def consume_search_quota(ctx):
+    if ctx.is_admin or not quota_enabled(ctx):
         return False
     ctx.settings["days"] -= 1
     ctx.settings["sc"] += 1
@@ -140,8 +152,8 @@ def consume_search_quota(ctx):
     return True
 
 
-def finish_search(ctx):
-    if not ctx.is_admin:
+def finish_search(ctx, deducted_quota):
+    if deducted_quota:
         ctx.cl.relatedMessage(
             ctx.to,
             "剩餘使用次數:{day}".format(day=ctx.settings["days"]),

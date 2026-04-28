@@ -18,7 +18,7 @@ from plugins.core.features import (
     load_feature_flags,
     toggle_feature,
 )
-from plugins.core.help_template import GITHUB_URL, build_help_flex, build_settings_flex, build_status_flex
+from plugins.core.help_template import GITHUB_URL, build_help_flex, build_settings_flex, build_status_flex, build_version_check_flex
 from dotenv import load_dotenv
 from datetime import datetime
 import threading
@@ -45,6 +45,7 @@ FEATURE_FLAGS_PATH = os.path.join(DATA_DIR, "features.json")
 VERSION_FILE = os.path.join(ROOT_DIR, "VERSION")
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION"
 GITHUB_PULLS_API = "https://api.github.com/repos/talkouki89/chino-line-image-bot/pulls?state=closed&base=master&sort=updated&direction=desc&per_page=5"
+LIFF_ALLOW_MESSAGE = "請Bot允許liff line://app/1660845055-GMJrEOVY?type=text&text=LiffOk"
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(TAG_DIR, exist_ok=True)
@@ -214,7 +215,8 @@ def sendTemplate(to, data):
         alt_text = template_alt_text(data)
         logError(f"LIFF template send failed: {result}")
         fallback = template_fallback_text(data)
-        cl.sendMessage(to, fallback or f"{alt_text}\n\n模板傳送失敗，請查看 errorLog.txt。")
+        lines = [fallback or alt_text, LIFF_ALLOW_MESSAGE]
+        cl.sendMessage(to, "\n\n".join(line for line in lines if line))
     return result
 
 
@@ -465,34 +467,28 @@ def fetch_recent_merged_prs():
     return prs
 
 
-def build_version_check_text():
+def build_version_check_template():
     local_version = read_local_version()
     try:
         remote_version = fetch_remote_version()
     except Exception as exc:
         logError(f"version check failed: {exc}")
-        return f"版本檢查失敗：無法讀取遠端 VERSION。\n目前版本：{local_version}"
+        return build_version_check_flex(local_version, error="無法讀取遠端 VERSION。")
 
-    lines = [
-        "版本檢查",
-        f"目前版本：{local_version}",
-        f"遠端版本：{remote_version}",
-    ]
-    if remote_version == local_version:
-        lines.append("目前已是最新版本。")
-    else:
-        lines.append("發現新版本。若要更新，請管理員輸入：版本更新")
-        prs = fetch_recent_merged_prs()
-        if prs:
-            lines.append("\n最近更新內容：")
-            for pr in prs[:5]:
-                lines.append(f"#{pr['number']} {pr['title']}")
-                if pr["summary"]:
-                    lines.append(f"  {pr['summary']}")
-    return "\n".join(lines)
+    prs = fetch_recent_merged_prs() if remote_version != local_version else []
+    return build_version_check_flex(local_version, remote_version=remote_version, prs=prs)
 
 
 def update_from_git():
+    local_version = read_local_version()
+    try:
+        remote_version = fetch_remote_version()
+    except Exception as exc:
+        logError(f"version update check failed: {exc}")
+        return False, False, "無法讀取遠端 VERSION，已取消更新。"
+    if remote_version == local_version:
+        return True, False, f"目前已是最新版本（{local_version}），不需要更新。"
+
     branch = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=ROOT_DIR,
@@ -501,7 +497,7 @@ def update_from_git():
         check=True,
     ).stdout.strip()
     if branch != "master":
-        return False, f"目前分支是 {branch}，請切回 master 後再更新。"
+        return False, False, f"目前分支是 {branch}，請切回 master 後再更新。"
 
     status = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -511,7 +507,7 @@ def update_from_git():
         check=True,
     ).stdout.strip()
     if status:
-        return False, "工作區有未提交變更，為避免覆蓋資料，已取消更新。"
+        return False, False, "工作區有未提交變更，為避免覆蓋資料，已取消更新。"
 
     subprocess.run(["git", "fetch", "origin", "master"], cwd=ROOT_DIR, check=True)
     result = subprocess.run(
@@ -521,8 +517,8 @@ def update_from_git():
         capture_output=True,
     )
     if result.returncode != 0:
-        return False, (result.stderr or result.stdout or "git pull failed").strip()
-    return True, (result.stdout or "已更新到最新版本。").strip()
+        return False, False, (result.stderr or result.stdout or "git pull failed").strip()
+    return True, True, (result.stdout or "已更新到最新版本。").strip()
 
 
 def parse_mentioned_mids(content_metadata):
@@ -688,6 +684,9 @@ def PicBot(op):
                         json.dump(who_mark_me, f, sort_keys=True, indent=4, ensure_ascii=False)                                                  
             plugin_context = build_plugin_context(op, msg, text, cmd, to, sender, receiver, msg_id)
             if cmd in {"功能狀態", "功能状态", "功能開啟狀態", "功能列表狀態"}:
+                if not is_manager(sender):
+                    cl.relatedMessage(to, "此功能只有管理員可以使用。", op.message.id)
+                    return
                 sendTemplate(to, build_status_flex(feature_flags))
                 return
             if cmd in {"功能設定", "功能開關", "功能列表"}:
@@ -709,16 +708,23 @@ def PicBot(op):
                 cl.relatedMessage(to, f"{FEATURE_INDEX[feature_key]['name']} 已{state}", op.message.id)
                 return
             if cmd == "版本檢查":
-                cl.relatedMessage(to, build_version_check_text(), op.message.id)
+                if not is_manager(sender):
+                    cl.relatedMessage(to, "此功能只有管理員可以使用。", op.message.id)
+                    return
+                sendTemplate(to, build_version_check_template())
                 return
             if cmd == "版本更新":
                 if not is_manager(sender):
                     cl.relatedMessage(to, "此功能只有管理員可以使用。", op.message.id)
                     return
                 cl.relatedMessage(to, "開始更新版本，請稍候。", op.message.id)
-                ok, message = update_from_git()
-                if ok:
-                    cl.relatedMessage(to, f"版本更新完成。\n{message}\n請重啟 bot 套用新程式。", op.message.id)
+                ok, updated, message = update_from_git()
+                if ok and updated:
+                    cl.relatedMessage(to, f"版本更新完成。\n{message}\nBot 將自動重啟套用新程式。", op.message.id)
+                    time.sleep(2)
+                    restartBot()
+                elif ok:
+                    cl.relatedMessage(to, message, op.message.id)
                 else:
                     cl.relatedMessage(to, f"版本更新失敗。\n{message}", op.message.id)
                 return
@@ -820,8 +826,10 @@ def PicBot(op):
                         restartBot()
                 elif cmd.startswith('reb '):
                     mentioned_mids = parse_mentioned_mids(msg.contentMetadata)
-                    if clMID not in mentioned_mids:
+                    if not mentioned_mids:
                         cl.relatedMessage(to, "請標記 bot，例如：reb @bot", op.message.id)
+                        return
+                    if clMID not in mentioned_mids:
                         return
 
                     contact = cl.getContact(sender)
@@ -866,7 +874,7 @@ def PicBot(op):
                     sendTemplate(to, data)                      
                 elif cmd == 'allowliff':
                     cl.relatedMessage(
-                        to, "請允許liff：line://app/1660845055-GMJrEOVY?type=text&text=LiffOk", op.message.id) 
+                        to, LIFF_ALLOW_MESSAGE, op.message.id) 
                 elif cmd.startswith('ad '):
                     MENTION = ast.literal_eval(msg.contentMetadata['MENTION'])
                     inkey = MENTION['MENTIONEES'][0]['M']

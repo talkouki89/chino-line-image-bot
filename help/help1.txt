@@ -33,7 +33,6 @@ del:MID         用 MID 移除權限
 
 【訊息 / 工具】
 us 數字         收回指定數量訊息
-allowliff       測試 LIFF 模板
 pic:help        顯示此作者功能表
 
 作者：智乃

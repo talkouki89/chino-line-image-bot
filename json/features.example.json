@@ -19,6 +19,7 @@
     "media_tools": true,
     "nhentai": true,
     "pixiv": true,
+    "search_quota": true,
     "wnacg": true,
     "xslist": true,
     "announcement_notify": false
