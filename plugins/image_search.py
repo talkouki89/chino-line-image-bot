@@ -6,19 +6,14 @@ from PicImageSearch.sync import (
     Ascii2D as Ascii2DSync,
     TraceMoe as TraceMoeSync,
     AnimeTrace as AnimeTraceSync,
-    EHentai as EHentaiSync,
-    Copyseeker as CopyseekerSync,
     Yandex as YandexSync,
     Iqdb as IqdbSync,
-    Network as PicNetworkSync,
 )
 
 from plugins.core.template import Chino
 from plugins.core.web_image_search import (
     format_ggjav_result,
-    format_soutubot_result,
     search_ggjav_pornstar,
-    search_soutubot,
 )
 
 
@@ -30,13 +25,9 @@ ENGINE_FEATURE_KEYS = {
     "SauceNAO": "engine_saucenao",
     "Ascii2D": "engine_ascii2d",
     "TraceMoe": "engine_tracemoe",
-    "EHentai": "engine_ehentai",
-    "ExHentai": "engine_exhentai",
-    "Copyseeker": "engine_copyseeker",
     "Yandex": "engine_yandex",
     "Iqdb": "engine_iqdb",
     "AnimeTrace": "engine_animetrace",
-    "Soutubot": "engine_soutubot",
     "GGJAV": "engine_ggjav",
 }
 
@@ -44,14 +35,10 @@ SEARCH_COMMANDS = {
     "回覆搜1": ("SauceNAO.jpg", "SauceNAO", "SauceNAO"),
     "回覆搜2": ("Ascii2D.jpg", "Ascii2D", "Ascii2D"),
     "回覆搜3": ("TraceMoe.jpg", "TraceMoe", "TraceMoe"),
-    "回覆搜4": ("EHentai.jpg", "E-Hentai", "EHentai"),
-    "回覆搜5": ("ExHentai.jpg", "ExHentai", "ExHentai"),
-    "回覆搜6": ("Copyseeker.jpg", "Copyseeker", "Copyseeker"),
-    "回覆搜7": ("Yandex.jpg", "Yandex", "Yandex"),
-    "回覆搜8": ("Iqdb.jpg", "Iqdb", "Iqdb"),
-    "回覆搜9": ("AnimeTrace.jpg", "AnimeTrace", "AnimeTrace"),
-    "回覆搜10": ("Soutubot.jpg", "Soutubot", "Soutubot"),
-    "回覆搜11": ("GGJAV.jpg", "GGJAV 女優辨識", "GGJAV"),
+    "回覆搜4": ("Yandex.jpg", "Yandex", "Yandex"),
+    "回覆搜5": ("Iqdb.jpg", "Iqdb", "Iqdb"),
+    "回覆搜6": ("AnimeTrace.jpg", "AnimeTrace", "AnimeTrace"),
+    "回覆搜7": ("GGJAV.jpg", "GGJAV 女優辨識", "GGJAV"),
 }
 
 TEMPLATE_COMMANDS = {
@@ -91,7 +78,7 @@ def handle_reply_search(ctx):
         result_text, video_url = search_as_text(engine, save_name)
         ctx.cl.relatedMessage(ctx.to, result_text, ctx.msg_id)
         if video_url:
-            ctx.cl.sendVideoWithURL(ctx.to, str(video_url))
+            send_video_preview(ctx, video_url)
         deducted_quota = consume_search_quota(ctx)
     except Exception as exc:
         ctx.log_error(exc)
@@ -209,36 +196,13 @@ def search_as_text(engine, image_path):
             f"\n➮番劇是否R18⇛ {result.isAdult}"
             f"\n➮番劇匹配的集數⇛ {result.episode}"
             f"\n➮縮略圖預覽Url⇛ {result.image}"
+            f"\n➮影片預覽Url⇛ {result.video}"
             "\n\n作者:智乃妹妹٩(ˊᗜˋ*)و",
             result.video,
         )
 
-    if engine in {"EHentai", "ExHentai"}:
-        label = "E-Hentai" if engine == "EHentai" else "ExHentai"
-        result = first_search_result(ehentai_client(is_ex=engine == "ExHentai").search(file=image_path), label)
-        return (
-            f"下面為{label}的圖搜結果"
-            f"\n\n➮本本的標題⇛ {result.title}"
-            f"\n➮本本的分類⇛ {result.type}"
-            f"\n➮本本的日期⇛ {result.date}"
-            f"\n➮本本的url⇛ {result.url}"
-            "\n\n作者:智乃妹妹٩(ˊᗜˋ*)و",
-            None,
-        )
-
-    if engine == "Copyseeker":
-        result = first_search_result(copyseeker_search(file=image_path), "Copyseeker")
-        return (
-            "下面為Copyseeker的圖搜結果"
-            f"\n\n網址排名⇛ {result.website_rank}"
-            f"\n圖片標題⇛ {result.title}"
-            f"\n圖片Url⇛ {result.url}"
-            "\n\n作者:智乃妹妹٩(ˊᗜˋ*)و",
-            None,
-        )
-
     if engine == "Yandex":
-        result = first_search_result(YandexSync(**picsearch_kwargs()).search(file=image_path), "Yandex")
+        result = first_search_result(yandex_search(file=image_path), "Yandex")
         return (
             "下面為Yandex的圖搜結果"
             f"\n\n圖片標題⇛ {result.title}"
@@ -272,9 +236,6 @@ def search_as_text(engine, image_path):
         else:
             text += "\n\n可能角色: N/A"
         return text + "\n\n作者:智乃妹妹٩(ˊᗜˋ*)و", None
-
-    if engine == "Soutubot":
-        return format_soutubot_result(search_soutubot(image_path)), None
 
     if engine == "GGJAV":
         return format_ggjav_result(search_ggjav_pornstar(image_path)), None
@@ -329,7 +290,7 @@ def send_template_result(ctx, engine, image_path):
                 result.episode,
             ),
         )
-        ctx.cl.sendVideoWithURL(ctx.to, str(result.video))
+        send_video_preview(ctx, result.video)
         return
 
     raise ValueError(f"Unknown template engine: {engine}")
@@ -395,29 +356,23 @@ def ascii2d_base_urls():
     return urls
 
 
-def copyseeker_search(file):
-    proxies = os.getenv("PICSEARCH_PROXIES") or None
-    network = PicNetworkSync(proxies=proxies) if proxies else PicNetworkSync()
-    client = network.start()
-    try:
-        return CopyseekerSync(client=client).search(file=file)
-    finally:
-        network.close()
+def yandex_search(file):
+    last_error = None
+    for base_url in yandex_base_urls():
+        try:
+            return YandexSync(**picsearch_kwargs(base_url=base_url)).search(file=file)
+        except Exception as exc:
+            last_error = exc
+    raise last_error or RuntimeError("Yandex search failed")
 
 
-def ehentai_client(is_ex=False):
-    timeout = int(os.getenv("PICSEARCH_TIMEOUT", "60"))
-    kwargs = {"is_ex": is_ex, "timeout": timeout if not is_ex else max(timeout, 120)}
-    if is_ex:
-        cookies = os.getenv("EXHENTAI_COOKIES")
-        if not cookies:
-            raise ValueError("EXHENTAI_COOKIES is required for ExHentai search")
-        kwargs["cookies"] = cookies
-    else:
-        cookies = os.getenv("EHENTAI_COOKIES")
-        if cookies:
-            kwargs["cookies"] = cookies
-    return EHentaiSync(**picsearch_kwargs(**kwargs))
+def yandex_base_urls():
+    raw = os.getenv("YANDEX_BASE_URLS") or os.getenv("YANDEX_BASE_URL") or "https://yandex.ru,https://ya.ru"
+    urls = [url.strip().rstrip("/") for url in raw.split(",") if url.strip()]
+    for fallback in ("https://yandex.ru", "https://ya.ru"):
+        if fallback not in urls:
+            urls.append(fallback)
+    return urls
 
 
 def env_bool(name, default=False):
@@ -448,6 +403,14 @@ def safe_remove(path):
         except PermissionError:
             import time
             time.sleep(0.25)
+
+
+def send_video_preview(ctx, video_url):
+    try:
+        ctx.cl.sendVideoWithURL(ctx.to, str(video_url))
+    except Exception as exc:
+        ctx.log_error(exc)
+        ctx.cl.relatedMessage(ctx.to, "影片預覽上傳失敗，可以直接開啟上方影片預覽Url。", ctx.msg_id)
 
 
 def download_reply_image(ctx, related_message_id, save_name):

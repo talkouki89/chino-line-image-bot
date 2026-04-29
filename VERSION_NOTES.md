@@ -1,3 +1,16 @@
+# 2026.04.30.1
+
+- 調整圖搜說明與搜尋引擎編號，移除目前不可用的回覆搜項目，保留可用的 SauceNAO、Ascii2D、TraceMoe、Yandex、Iqdb、AnimeTrace、GGJAV。
+- 新增與整理管理員工具：`pic:about`、`rg` / `群組資訊`、`mymid`、`gid`、`mid @人`、`data`，並把 `bottoken` / `botauthtoken` 放到 BotCreator 專用區。
+- 優化 `pic:about`，避免部分 LINE API 回 500 時整個指令失敗，無法取得的帳號設定欄位不再顯示。
+- 優化 `x;URL` / `回覆搜x`，支援更多 X/Twitter 網域並改善網址解析、傳送結果與錯誤提示。
+- 修正 `ytmp4:URL` 的 yt-dlp 下載流程，優先選擇不需要 ffmpeg 合併的單檔影片，並改用暫存資料夾追蹤實際下載檔案。
+- 調整抽圖標籤模板與 tag 指令，新增標籤分類與繁簡處理，並修正搜尋不到時的提示文字。
+- 新增 Freeimage 直接圖片 URL 回傳，並補上圖片回覆 API 文件。
+- 拆分標註查詢工具到獨立外掛，更新功能開關、README 專案結構與常用指令說明。
+- 移除不可用或已棄用的功能入口，包括 XSList 舊關鍵字查詢、imsearch / Soutubot、E-Hentai / ExHentai / Copyseeker 與移除 E2EE 金鑰指令。
+- 更新圖搜 API 版本檢查與更新指令，並整理管理員 help 模板第二頁。
+
 # 2026.04.29.3
 
 - 新增管理員群發功能，可先預覽文字、圖片或影片，確認後背景每秒向一個群組發送，避免一次大量發送。

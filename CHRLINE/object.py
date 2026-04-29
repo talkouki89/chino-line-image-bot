@@ -999,7 +999,13 @@ class Object(ChrHelperProtocol):
                         {
                             "category": "original",
                             "fileSize": len(efile),
-                            "extension": "jpg",
+                            "extension": {
+                                "image": "jpg",
+                                "gif": "gif",
+                                "video": "mp4",
+                                "audio": "m4a",
+                                "file": "bin",
+                            }.get(oType, "bin"),
                             "animated": oType == "gif",
                         }
                     ),

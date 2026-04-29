@@ -5,12 +5,10 @@ ChinoBot 2.0｜免費功能
 回覆搜1  SauceNAO
 回覆搜2  Ascii2D
 回覆搜3  TraceMoe
-回覆搜4  E-Hentai
-回覆搜5  ExHentai
-回覆搜6  Copyseeker
-回覆搜7  Yandex
-回覆搜8  Iqdb
-回覆搜9  AnimeTrace
+回覆搜4  Yandex
+回覆搜5  Iqdb
+回覆搜6  AnimeTrace
+回覆搜7  GGJAV 女優辨識
 
 其他：
 #圖片上傳 回覆圖片後上傳到 Freeimage.host，回傳圖片網址
@@ -29,10 +27,10 @@ p:數字   解析 Pixiv 作品
 3. 等待搜尋結果
 
 【小提醒】
-1 / 2 / 6 / 7 / 8：適合搜圖片來源
+1 / 2 / 4 / 5：適合搜圖片來源
 3：適合搜動畫截圖
-9：適合辨識動畫角色
-4 / 5：適合搜本子來源
+6：適合辨識動畫角色
+7：適合辨識女優
 
 LINE 會壓縮圖片，圖片太糊時可能搜不到。
 

@@ -18,7 +18,7 @@ from plugins.core.features import (
     load_feature_flags,
     toggle_feature,
 )
-from plugins.core.help_template import GITHUB_URL, build_help_flex, build_settings_flex, build_status_flex, build_version_check_flex
+from plugins.core.help_template import GITHUB_URL, build_help_flex, build_picsearch_api_version_check_flex, build_settings_flex, build_status_flex, build_version_check_flex
 from dotenv import load_dotenv
 from datetime import datetime
 import threading
@@ -32,6 +32,7 @@ import os
 import re
 import asyncio
 import base64
+import importlib.metadata
 import subprocess
 import traceback
 import urllib.request
@@ -51,6 +52,7 @@ REMOTE_VERSION_API_URL = "https://api.github.com/repos/talkouki89/chino-line-ima
 REMOTE_VERSION_NOTES_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION_NOTES.md"
 REMOTE_VERSION_NOTES_API_URL = "https://api.github.com/repos/talkouki89/chino-line-image-bot/contents/VERSION_NOTES.md?ref=master"
 GITHUB_PULLS_API = "https://api.github.com/repos/talkouki89/chino-line-image-bot/pulls?state=closed&base=master&sort=updated&direction=desc&per_page=5"
+PICIMAGESEARCH_PYPI_API = "https://pypi.org/pypi/PicImageSearch/json"
 LIFF_ID = "2009929108-vOiudUbo"
 LIFF_URL = f"line://app/{LIFF_ID}"
 LIFF_ALLOW_MESSAGE = f"請Bot允許liff {LIFF_URL}?type=text&text=LiffOk"
@@ -189,18 +191,24 @@ def toggle_feature_command(key):
     return toggle_feature(FEATURE_FLAGS_PATH, feature_flags, key)
 
 
+def is_botcreator(sender):
+    if isinstance(botcreator, (list, tuple, set)):
+        return sender in botcreator
+    return bool(botcreator) and sender == botcreator
+
+
 def is_manager(sender):
     """Return True when sender can manage bot settings."""
-    return sender in ban["admin"] or (botcreator and sender in botcreator)
+    return sender in ban["admin"] or is_botcreator(sender)
 
 def UpgradePicapi():
     """Upgrade PicImageSearch from GitHub without restarting LINE login first."""
-    print("更新api中")
+    print("更新圖搜api中")
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "--upgrade", "--no-deps", "git+https://github.com/kitUIN/PicImageSearch.git"],
         check=True,
     )
-    print("api更新完畢!")
+    print("圖搜api更新完畢!")
 
 def restartBot():
     """Save state and restart the whole process. This will log in again."""
@@ -209,12 +217,6 @@ def restartBot():
     python = sys.executable
     os.execl(python, python, *sys.argv)
 
-def ChinoRestart():
-    """Restart the whole process without saving runtime state first."""
-    print("重啟中")
-    python = sys.executable
-    os.execl(python, python, *sys.argv)
-    
 def sendTemplate(to, data):
     """Send a LIFF message through the configured LIFF id."""
     try:
@@ -420,6 +422,192 @@ def get_chat_member_count(chat_id):
     return "未知"
 
 
+def format_runtime(seconds):
+    seconds = int(max(0, seconds))
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    parts = []
+    if days:
+        parts.append(f"{days}天")
+    if hours:
+        parts.append(f"{hours}小時")
+    if minutes:
+        parts.append(f"{minutes}分")
+    parts.append(f"{seconds}秒")
+    return "".join(parts)
+
+
+def setting_text(value, true_text="允許", false_text="拒絕", unknown_text="未知"):
+    if value is None:
+        return unknown_text
+    return true_text if bool(value) else false_text
+
+
+def switch_text(value, true_text="開啟", false_text="關閉", unknown_text="未知"):
+    return setting_text(value, true_text=true_text, false_text=false_text, unknown_text=unknown_text)
+
+
+def safe_api_value(label, callback, default=None):
+    try:
+        return callback()
+    except Exception as exc:
+        logError(f"pic:about {label} failed: {exc}")
+        return default
+
+
+def safe_count(value):
+    try:
+        return len(value or [])
+    except TypeError:
+        return "未知"
+
+
+def build_account_report():
+    profile = safe_api_value("getProfile", cl.getProfile, clProfile)
+    setting = safe_api_value("getSettings", cl.getSettings)
+    groups = safe_api_value(
+        "getAllChatMids",
+        lambda: get_object_value(cl.getAllChatMids(), "memberChatMids", default=[]),
+        [],
+    )
+    contacts = safe_api_value("getAllContactIds", cl.getAllContactIds, [])
+    blocked = safe_api_value("getBlockedContactIds", cl.getBlockedContactIds, [])
+
+    lines = [
+        "╔══[智乃圖搜狀態]",
+        f"╠ 個人名稱：{get_object_value(profile, 'displayName', default='未知')}",
+        f"╠ Line 帳號 ID：{get_object_value(profile, 'userid', default='未設定')}",
+        f"╠ MID：{get_object_value(profile, 'mid', default='未知')}",
+        f"╠ 帳號地區：{get_object_value(profile, 'regionCode', default='未知')}",
+        f"╠ 群組數量：{safe_count(groups)}",
+        f"╠ 好友人數：{safe_count(contacts)}",
+        f"╠ 封鎖人數：{safe_count(blocked)}",
+        f"╠ 運行時間：{format_runtime(time.time() - mulai)}",
+    ]
+
+    if setting is not None:
+        search_by_userid = get_object_value(setting, "privacySearchByUserid", default=None)
+        search_by_phone = get_object_value(setting, "privacySearchByPhoneNumber", default=None)
+        search_by_email = get_object_value(setting, "privacySearchByEmail", default=None)
+        secondary_login = get_object_value(setting, "privacyAllowSecondaryDeviceLogin", default=None)
+        receive_not_friend = get_object_value(setting, "privacyReceiveMessagesFromNotFriend", default=None)
+        e2ee_enabled = get_object_value(setting, "e2eeEnable", default=None)
+        setting_lines = [
+            f"╠ 帳號語言：{get_object_value(setting, 'preferenceLocale', default='未知')}",
+            f"╠ 允許 ID 加友：{setting_text(search_by_userid)}",
+            f"╠ 允許電話加友：{setting_text(search_by_phone)}",
+            f"╠ 允許 E-mail 加友：{setting_text(search_by_email)}",
+            f"╠ Letter Sealing：{switch_text(e2ee_enabled)}",
+            f"╠ 允許其他裝置登入：{setting_text(secondary_login)}",
+            f"╠ 訊息阻擋：{setting_text(receive_not_friend, true_text='關閉', false_text='開啟')}",
+            f"╠ 允許 ID 被搜尋：{setting_text(search_by_userid)}",
+        ]
+        if not all(line.endswith("未知") for line in setting_lines):
+            lines.append("╠══[帳號設定]")
+            lines.extend(line for line in setting_lines if not line.endswith("未知"))
+
+    lines.append("╚══════════════")
+    return "\n".join(lines)
+
+
+def get_group_detail(chat_id):
+    """Return a group/chat object with the richest data this API can provide."""
+    for getter_name in ("getGroup", "getChats", "getChatV2"):
+        getter = getattr(cl, getter_name, None)
+        if getter is None:
+            continue
+        try:
+            group = getter(chat_id)
+        except Exception:
+            continue
+        if group is not None:
+            return group
+    return None
+
+
+def group_extra_value(group, name, default=None):
+    extra = get_object_value(group, "extra", default=None)
+    group_extra = get_object_value(extra, "groupExtra", default=None)
+    return get_object_value(group_extra, name, default=default)
+
+
+def build_group_report(chat_id):
+    if not str(chat_id).startswith("c"):
+        return "此指令只能在群組使用。", None
+
+    group = get_group_detail(chat_id)
+    if group is None:
+        return "群組資訊取得失敗。", None
+
+    group_id = get_object_value(group, "id", "chatMid", default=chat_id)
+    group_name = get_object_value(group, "name", "chatName", default="未知")
+    members = get_object_value(group, "members", "memberMids", default=None)
+    if members is None:
+        members = group_extra_value(group, "memberMids", default=[])
+    invitees = get_object_value(group, "invitee", "inviteeMids", default=None)
+    if invitees is None:
+        invitees = group_extra_value(group, "inviteeMids", default=[])
+    creator = get_object_value(group, "creator", default=None) or group_extra_value(group, "creator", default=None)
+    creator_name = get_object_value(creator, "displayName", "name", default="不明")
+    if creator_name == "不明" and isinstance(creator, str) and creator.startswith("u"):
+        try:
+            creator_name = get_object_value(cl.getContact(creator), "displayName", default=creator)
+        except Exception:
+            creator_name = creator
+    created_time = get_object_value(group, "createdTime", default=0) or 0
+    try:
+        created_text = datetime.fromtimestamp(int(created_time) / 1000, pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        created_text = "未知"
+
+    prevented = get_object_value(group, "preventedJoinByTicket", default=None)
+    if prevented is None:
+        ticket_disabled = group_extra_value(group, "ticketDisabled", default=None)
+        prevented = bool(ticket_disabled) if ticket_disabled is not None else True
+
+    if prevented:
+        qr_status = "關閉"
+        ticket_url = "無"
+    else:
+        qr_status = "開啟"
+        try:
+            ticket = cl.reissueChatTicket(group_id)
+            ticket_url = f"https://line.me/R/ti/g/{ticket}"
+        except Exception as exc:
+            ticket_url = f"取得失敗：{exc}"
+
+    picture = get_object_value(group, "pictureStatus", "picturePath", default="")
+    if picture and str(picture).startswith(("http://", "https://")):
+        picture_url = str(picture)
+    elif picture:
+        picture_url = f"http://dl.profile.line-cdn.net/{picture}"
+    else:
+        picture_url = None
+
+    try:
+        member_count = len(members)
+    except TypeError:
+        member_count = "未知"
+    try:
+        invitee_count = len(invitees)
+    except TypeError:
+        invitee_count = "未知"
+
+    return "\n".join([
+        "╔══[群組資訊]",
+        f"╠ 群組名稱：{group_name}",
+        f"╠ 成員數量：{member_count}",
+        f"╠ 邀請數量：{invitee_count}",
+        f"╠ 建立時間：{created_text}",
+        f"╠ 群主創建者：{creator_name}",
+        f"╠ 群組 GID：{group_id}",
+        f"╠ 網址狀態：{qr_status}",
+        f"╠ 群組網址：{ticket_url}",
+        "╚══════════════",
+    ]), picture_url
+
+
 def should_enforce_group_min_members():
     """Return whether group invite member-count checks are enabled."""
     return GROUP_MIN_MEMBER_CHECK and is_feature_enabled("group_min_member_check")
@@ -515,6 +703,30 @@ def build_version_check_template():
         logError(f"version notes fetch failed: {exc}")
         notes = read_local_version_notes()
     return build_version_check_flex(local_version, remote_version=remote_version, prs=prs, version_notes=notes)
+
+
+def read_picsearch_api_version():
+    try:
+        return importlib.metadata.version("PicImageSearch")
+    except importlib.metadata.PackageNotFoundError:
+        return "未安裝"
+
+
+def fetch_remote_picsearch_api_version():
+    payload = json.loads(fetch_text(PICIMAGESEARCH_PYPI_API))
+    return str(payload.get("info", {}).get("version") or "").strip()
+
+
+def build_picsearch_api_version_check_template():
+    local_version = read_picsearch_api_version()
+    try:
+        remote_version = fetch_remote_picsearch_api_version()
+    except Exception as exc:
+        logError(f"PicImageSearch version check failed: {exc}")
+        return build_picsearch_api_version_check_flex(local_version, error="無法讀取遠端 PicImageSearch 版本。")
+    if not remote_version:
+        return build_picsearch_api_version_check_flex(local_version, error="遠端 PicImageSearch 版本資料為空。")
+    return build_picsearch_api_version_check_flex(local_version, remote_version=remote_version)
 
 
 def update_from_git():
@@ -617,7 +829,7 @@ def build_plugin_context(op, msg, text, cmd, to, sender, receiver, msg_id):
         ban=ban,
         datadir=datadir,
         tag_dir=TAG_DIR,
-        is_creator=sender in botcreator,
+        is_creator=is_botcreator(sender),
         is_admin=sender in ban["admin"],
         reply=reply,
         send_template=sendTemplate,
@@ -789,12 +1001,107 @@ def PicBot(op):
                 else:
                     cl.relatedMessage(to, f"版本更新失敗。\n{message}", op.message.id)
                 return
+            if cmd == "圖搜api版本檢查":
+                if not is_manager(sender):
+                    cl.relatedMessage(to, "此功能只有管理員可以使用。", op.message.id)
+                    return
+                sendTemplate(to, build_picsearch_api_version_check_template())
+                return
+            if cmd == "pic:about":
+                if not is_manager(sender):
+                    return
+                try:
+                    cl.relatedMessage(to, build_account_report(), op.message.id)
+                except Exception as exc:
+                    logError(exc)
+                    cl.relatedMessage(to, f"帳號資訊取得失敗：{exc}", op.message.id)
+                return
+            if cmd in ("rg", "群組資訊"):
+                if not is_manager(sender):
+                    return
+                try:
+                    report, picture_url = build_group_report(to)
+                    cl.relatedMessage(to, report, op.message.id)
+                    if picture_url:
+                        cl.sendImageWithURL(to, picture_url)
+                except Exception as exc:
+                    logError(exc)
+                    cl.relatedMessage(to, f"群組資訊取得失敗：{exc}", op.message.id)
+                return
+            if cmd == "data":
+                if not is_manager(sender):
+                    return
+                related_id = get_object_value(msg, "relatedMessageId", default=None)
+                if not related_id:
+                    cl.relatedMessage(to, "需回覆訊息來查詢。", op.message.id)
+                    return
+                try:
+                    for recent in cl.getRecentMessagesV2(to, 1000):
+                        if str(get_object_value(recent, "id", default="")) == str(related_id):
+                            cl.relatedMessage(to, str(recent), op.message.id)
+                            return
+                    cl.relatedMessage(to, "查無回覆訊息資料。", op.message.id)
+                except Exception as exc:
+                    logError(exc)
+                    cl.relatedMessage(to, "查詢失敗。", op.message.id)
+                return
+            if cmd.startswith("exec:"):
+                if not is_botcreator(sender):
+                    return
+                code = text.split(":", 1)[1].strip() if text else ""
+                if not code:
+                    cl.relatedMessage(to, "請輸入要執行的程式碼。", op.message.id)
+                    return
+                try:
+                    exec_scope = {
+                        "cl": cl,
+                        "op": op,
+                        "msg": msg,
+                        "text": text,
+                        "cmd": cmd,
+                        "to": to,
+                        "sender": sender,
+                        "receiver": receiver,
+                        "msg_id": msg_id,
+                        "settings": settings,
+                        "ban": ban,
+                        "datadir": datadir,
+                    }
+                    exec(code, globals(), exec_scope)
+                except Exception as exc:
+                    logError(exc)
+                    cl.relatedMessage(to, str(exc), op.message.id)
+                return
             if plugins.dispatch(plugin_context):
                 # A hot-reload plugin handled this message. Stop here so built-in
                 # command branches do not also process the same text.
                 return
+            if cmd in ("mymid", "gid") or cmd.startswith("mid "):
+                if not is_manager(sender):
+                    return
+                if cmd == "mymid":
+                    cl.relatedMessage(to, sender, op.message.id)
+                    return
+                if cmd == "gid":
+                    cl.relatedMessage(to, to, op.message.id)
+                    return
+                mentioned_mids = parse_mentioned_mids(msg.contentMetadata)
+                if mentioned_mids:
+                    cl.relatedMessage(to, "\n".join(mentioned_mids), op.message.id)
+                return
+            if cmd == '更新圖搜api':
+                if not is_manager(sender):
+                    return
+                cl.relatedMessage(to, "正在更新圖搜api....", op.message.id)
+                try:
+                    UpgradePicapi()
+                    cl.relatedMessage(to, "圖搜api更新完畢!", op.message.id)
+                except Exception as exc:
+                    logError(exc)
+                    cl.relatedMessage(to, f"圖搜api更新失敗：{exc}", op.message.id)
+                return
             # 半垢主人專屬
-            if sender in botcreator:
+            if is_botcreator(sender):
                 # 刪除全部權限
                 if cmd == '清圖搜':
                     ban["admin"] = []
@@ -873,16 +1180,10 @@ def PicBot(op):
                 # 少數重要功能
                 elif cmd == 'pic:help':
                     sendTemplate(to, build_help_flex(feature_flags, is_admin=True))
-                elif cmd == '更新api':
-                    cl.relatedMessage(to, "正在更新圖搜api....", op.message.id)
-                    UpgradePicapi()   
-                    cl.relatedMessage(to, "圖搜api更新完畢!", op.message.id)             
-                elif cmd == 'creb':
-                    if sender in botcreator:
-                        cl.relatedMessage(to, "智乃式重啟中....", op.message.id)
-                        ChinoRestart()
+                elif cmd in {'bottoken', 'botauthtoken'}:
+                    cl.relatedMessage(to, str(cl.authToken), op.message.id)
                 elif cmd == 'pic:reb':
-                    if sender in botcreator:
+                    if is_botcreator(sender):
                         cl.relatedMessage(to, "重新啟動中....", op.message.id)
                         restartBot()
                 elif cmd.startswith('reb '):
@@ -941,19 +1242,6 @@ def PicBot(op):
                     inkey = MENTION['MENTIONEES'][0]['M']
                     cl.findAndAddContactsByMid(inkey)
                     cl.relatedMessage(to, "成功加入好友", op.message.id)
-                elif cmd.startswith("mid "):
-                    if msg.contentMetadata:
-                        if 'MENTION' in msg.contentMetadata.keys() != None:
-                            names = re.findall(r'@(\w+)', text)
-                            mention = ast.literal_eval(
-                                msg.contentMetadata['MENTION'])
-                            mentionees = mention['MENTIONEES']
-                            lists = []
-                            for mention in mentionees:
-                                if mention["M"] not in lists:
-                                    lists.append(mention["M"])
-                            for ls in lists:
-                                cl.relatedMessage(to, str(ls), op.message.id)                    
                 # 次數
                 elif cmd == '查詢剩餘次數':
                     cl.relatedMessage(to, "剩餘使用次數:{day}".format(
@@ -1001,38 +1289,8 @@ def PicBot(op):
                             lines.append(f"║ GID: {group_id}")
                         lines.append(f"╚══[總共 {len(groups)} 個群組]")
                         cl.relatedMessage(to, "\n".join(lines), op.message.id)
-                # 機器簡介
-                elif cmd == 'pic:about':
-                    try:
-                        cl.deleteOtherFromChat(to, ["fuck"])
-                    except Exception as e:
-                        if getattr(e, "reason", "") == "request blocked":
-                            aa = "無法執行(規制)"
-                        else:
-                            aa = "可以執行(無規制)"
-                        arr = []
-                        t1 = time.time()
-                        loop = asyncio.get_event_loop()
-                        loop.close
-                        t2 = (time.time() - t1)
-                        creator = botcreator
-                        contact = cl.getContact(clMID)
-                        grouplist = cl.getAllChatMids().memberChatMids
-                        contactlist = cl.getAllContactIds()
-                        blockedlist = cl.getBlockedContactIds()
-                        eltime = time.time() - mulai
-                        ret_ = "《智乃圖搜狀態》"
-                        ret_ += "\n➲群組數量: {}".format(str(len(grouplist)))
-                        ret_ += "\n➲好友人數: {}".format(str(len(contactlist)))
-                        ret_ += "\n➲封鎖人數: {}".format(str(len(blockedlist)))
-                        ret_ += "\n➲Line帳號ID:\n➲{}".format(clProfile.userid)
-                        ret_ += "\n➲個人名稱:\n➲{}".format(str(clProfile.displayName))
-                        ret_ += "\n➲識別碼:\n➲{}".format(str(clProfile.mid))
-                        cl.relatedMessage(to, str(ret_), op.message.id)
-                    except Exception as e:
-                        cl.sendMessage(to, str(e))                        
                 # 收回指定數量訊息
-                elif cmd.startswith('un'):
+                if cmd.startswith('un'):
                     try:
                         cl.unsendMessage(msg.id)
                     except:
