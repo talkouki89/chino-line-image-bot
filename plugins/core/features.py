@@ -88,6 +88,12 @@ FEATURE_DEFINITIONS = [
         "commands": "x:URL / ytmp4:URL / 隨機圖 / r18色圖",
     },
     {
+        "key": "broadcast",
+        "name": "群發消息",
+        "description": "管理員建立預覽並確認後，背景每秒向一個群組發送文字、圖片或影片。",
+        "commands": "群發 / 確認群發 / 取消群發",
+    },
+    {
         "key": "image_draw_template",
         "name": "抽圖模板",
         "description": "用按鈕抽隨機圖、R18 圖、無 AI 圖。",
