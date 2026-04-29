@@ -5,31 +5,34 @@ from urllib.parse import quote
 LIFF_COMMAND_URL = "line://app/2009929108-vOiudUbo?type=text&text={text}&auto=yes"
 
 GAME_TAGS = [
-    ("Nikke（妮姬）", "Nikke"),
+    ("Nikke", "Nikke"),
     ("原神", "原神"),
-    ("崩鐵（崩铁）", "崩铁"),
+    ("崩鐵", "崩铁"),
     ("明日方舟", "明日方舟"),
     ("終末地", "終末地"),
-    ("異環（异环）", "异环"),
-    ("FGO（Fate/GrandOrder）", "fgo"),
-    ("PCR（公主連結）", "pcr"),
-    ("GBF（碧藍幻想）", "gbf"),
-    ("艦B（碧藍航線）", "舰b"),
-    ("艦C（艦隊 Collection）", "舰c"),
-    ("少前（少女前線）", "少前"),
+    ("異環", "异环"),
+    ("Fate/GrandOrder", "fgo"),
+    ("公主連結", "pcr"),
+    ("碧藍幻想", "gbf"),
+    ("碧藍航線", "舰b"),
+    ("艦隊collection", "舰c"),
+    ("少女前線", "少前"),
 ]
 
 OTHER_TAGS = [
     ("正太", "正太"),
-    ("蘿莉", "蘿莉"),
+    ("蘿莉", "萝莉"),
     ("御姐", "御姐"),
-    ("白髮", "白髮"),
-    ("黑髮", "黑髮"),
-    ("白絲（白丝）", "白丝"),
-    ("黑絲（黑丝）", "黑丝"),
+    ("白髮", "白发"),
+    ("黑髮", "黑发"),
+    ("白絲", "白丝"),
+    ("黑絲", "黑丝"),
     ("制服", "制服"),
-    ("女僕", "女僕"),
-    ("VTB（VTuber）", "vtb"),
+    ("女僕", "女仆"),
+    ("男娘", "男娘"),
+    ("扶他", "扶他"),
+    ("性轉", "性转"),
+    ("VTB", "vtb"),
 ]
 
 
@@ -85,7 +88,7 @@ def tag_bubble(title_text, page_text, tags):
         note(page_text),
         note("這邊為標籤 Tags 抽圖，所以可能會出 R18 的圖，請小心服用。"),
         note("有時也會出現可能跟標籤有差別的圖。"),
-        note("括號內只是備註，實際輸出時只會送出標籤本身。"),
+        note("按鈕顯示為繁體，送出的標籤會盡量使用簡體。"),
         separator(),
     ]
     return bubble(contents, [tag_button(label, tag) for label, tag in tags])
