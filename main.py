@@ -216,7 +216,10 @@ def ChinoRestart():
     
 def sendTemplate(to, data):
     """Send a LIFF message through the configured LIFF id."""
-    result = cl.sendLiff(to, data, liffId=LIFF_ID)
+    try:
+        result = cl.sendLiff(to, data, liffId=LIFF_ID)
+    except Exception as exc:
+        result = exc
     if is_liff_error(result):
         alt_text = template_alt_text(data)
         logError(f"LIFF template send failed: {result}")

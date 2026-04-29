@@ -62,7 +62,7 @@ def build_help_flex(flags, is_admin=False):
         "xs:關鍵字",
         "",
         "其他功能",
-        "抽圖 / 隨機圖 / 隨機無ai / r18色圖 / r18無ai",
+        "抽圖 / 隨機圖 / 隨機無ai / r18色圖 / r18無ai / tag色圖 標籤",
         "#圖片上傳",
     ]
     if is_admin:

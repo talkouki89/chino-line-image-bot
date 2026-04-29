@@ -11,6 +11,7 @@
 - LINE 登入、收訊與回覆
 - 圖片反搜：SauceNAO、Ascii2D、TraceMoe、AnimeTrace、E-Hentai、ExHentai、Copyseeker、Yandex、Iqdb
 - LINE Flex Message / LIFF 搜尋結果模板，支援回覆私訊 E2EE 圖片進行圖搜
+- 抽圖功能使用 [Lolicon API](https://docs.api.lolicon.app/#/setu) 取得隨機圖與標籤圖
 - X/Twitter、YouTube 下載相關指令
 - nHentai、紳士漫畫、禁漫天堂、Pixiv 編號解析模板
 - Freeimage.host 圖床上傳
@@ -206,6 +207,7 @@ def handle(ctx):
 - `隨機無ai`
 - `r18色圖`
 - `r18無ai`
+- `tag色圖 標籤`
 - `ytmp4:URL`
 - `n:數字`
 - `n:popular`
@@ -256,6 +258,7 @@ IMSEARCH_TOKEN=
 - [CHRLINE-Patch](https://github.com/WEDeach/CHRLINE-Patch)
 - [CHRLINE-Thrift](https://github.com/DeachSword/CHRLINE-Thrift)
 - [PicImageSearch](https://github.com/kitUIN/PicImageSearch)
+- [Lolicon API](https://docs.api.lolicon.app/#/setu)
 - [chino-liff](https://github.com/talkouki89/chino-liff)
 - [lolishinshi/imsearch](https://github.com/lolishinshi/imsearch)
 - [jmcomic](https://github.com/hect0x7/JMComic-Crawler-Python)
