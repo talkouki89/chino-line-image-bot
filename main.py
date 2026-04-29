@@ -751,14 +751,17 @@ def update_from_git():
 
     old_requirements = read_requirements_snapshot()
     subprocess.run(["git", "fetch", "origin", "master"], cwd=ROOT_DIR, check=True)
+    # Deployment copies may have local tracked edits from hotfixes or manual
+    # testing. The update command intentionally trusts origin/master so the bot
+    # can update without being blocked by those local file changes.
     result = subprocess.run(
-        ["git", "pull", "--ff-only", "origin", "master"],
+        ["git", "reset", "--hard", "origin/master"],
         cwd=ROOT_DIR,
         text=True,
         capture_output=True,
     )
     if result.returncode != 0:
-        return False, False, (result.stderr or result.stdout or "git pull failed").strip()
+        return False, False, (result.stderr or result.stdout or "git reset failed").strip()
     message = (result.stdout or "已更新到最新版本。").strip()
     new_requirements = read_requirements_snapshot()
     if old_requirements != new_requirements:
