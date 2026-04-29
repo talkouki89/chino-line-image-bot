@@ -12,19 +12,16 @@ IMAGE_ENGINE_KEYS = [
     "engine_saucenao",
     "engine_ascii2d",
     "engine_tracemoe",
-    "engine_ehentai",
-    "engine_exhentai",
-    "engine_copyseeker",
     "engine_yandex",
     "engine_iqdb",
     "engine_animetrace",
-    "engine_soutubot",
     "engine_ggjav",
 ]
 
 OTHER_FEATURE_KEYS = [
     "help_templates",
     "media_tools",
+    "mention_tools",
     "broadcast",
     "image_draw_template",
     "freeimage_upload",
@@ -32,7 +29,6 @@ OTHER_FEATURE_KEYS = [
     "wnacg",
     "jmcomic",
     "pixiv",
-    "xslist",
     "auto_friend",
     "group_min_member_check",
     "search_quota",
@@ -41,42 +37,87 @@ OTHER_FEATURE_KEYS = [
 
 
 def build_help_flex(flags, is_admin=False):
-    lines = [
+    public_lines = [
         "智乃搜圖機器人",
         "",
         "圖片搜尋",
         "回覆搜1 SauceNAO",
         "回覆搜2 Ascii2D",
         "回覆搜3 TraceMoe",
-        "回覆搜4 E-Hentai",
-        "回覆搜5 ExHentai",
-        "回覆搜6 Copyseeker",
-        "回覆搜7 Yandex",
-        "回覆搜8 Iqdb",
-        "回覆搜9 AnimeTrace",
-        "回覆搜10 Soutubot",
-        "回覆搜11 GGJAV 女優辨識",
+        "回覆搜4 Yandex",
+        "回覆搜5 Iqdb",
+        "回覆搜6 AnimeTrace",
+        "回覆搜7 GGJAV 女優辨識",
+        "",
+        "使用方式",
+        "回覆一張圖片後輸入上方指令",
         "",
         "作品解析",
         "n:數字 / n:popular",
         "w:數字 / c:數字 / p:數字",
-        "xs:關鍵字",
         "",
         "其他功能",
-        "抽圖 / 隨機圖 / 隨機無ai / r18色圖 / r18無ai / tag色圖 標籤",
+        "抽圖 / 隨機圖 / r18色圖 / tag色圖 標籤",
         "#圖片上傳",
+        "x;URL 下載 X/Twitter 圖片或影片",
+        "ytmp4:URL 下載影片",
+    ]
+    if not is_admin:
+        return simple_flex("ChinoBot 指令說明", public_lines, footer_buttons=[uri_button("開啟 GitHub", GITHUB_URL)])
+    admin_lines = [
+        "管理員功能",
+        "功能狀態",
+        "功能設定",
+        "功能切換 <key>",
+        "版本檢查 / 版本更新 / 圖搜api版本檢查",
+        "更新圖搜api",
+        "群發 / 確認群發 / 取消群發",
+        "pic:about / rg / 群組資訊 / data",
+        "mymid / gid / mid @人",
+        "lg / pic:reb / reb @bot",
+        "",
+        "BotCreator 專用",
+        "exec: / bottoken / botauthtoken",
+        f"功能狀態：{feature_status_text(flags)}",
+    ]
+    public_bubble = simple_bubble(public_lines)
+    public_bubble["footer"] = footer_buttons([uri_button("開啟 GitHub", GITHUB_URL)])
+    return {
+        "type": "flex",
+        "altText": "ChinoBot 指令說明",
+        "contents": {
+            "type": "carousel",
+            "contents": [
+                public_bubble,
+                simple_bubble(admin_lines),
+            ],
+        },
+    }
+
+
+def build_help_text(flags=None, is_admin=False):
+    lines = [
+        "智乃搜圖機器人",
+        "使用方式：先回覆一張圖片，再輸入回覆搜指令。",
+        "",
+        "回覆搜1：SauceNAO，找圖片來源。",
+        "回覆搜2：Ascii2D，找二次元原圖。",
+        "回覆搜3：TraceMoe，找動畫截圖。",
+        "回覆搜4 / 5：Yandex / Iqdb，找相似圖。",
+        "回覆搜6：AnimeTrace，辨識角色或作品。",
+        "回覆搜7：GGJAV，辨識女優。",
+        "",
+        "其他：#圖片上傳、抽圖、tag色圖、n/w/c/p作品解析。",
+        "媒體下載：x;URL 下載 X/Twitter 圖片或影片，ytmp4:URL 下載影片。",
     ]
     if is_admin:
         lines.extend([
             "",
-            "管理員",
-            "功能狀態 / 功能設定 / 功能切換 <key>",
-            "版本檢查 / 版本更新",
-            "群發 內容 / 確認群發 / 取消群發",
-            "lg / pic:reb / reb @bot",
-            f"功能狀態：{feature_status_text(flags)}",
+            "管理員：功能狀態、功能設定、版本檢查、版本更新、圖搜api版本檢查、更新圖搜api、群發。",
         ])
-    return simple_flex("ChinoBot 指令說明", lines, footer_buttons=[uri_button("開啟 GitHub", GITHUB_URL)])
+        if flags is not None:
+            lines.append(f"功能狀態：{feature_status_text(flags)}")
+    return "\n".join(lines)
 
 
 def build_settings_flex(flags):
@@ -142,6 +183,27 @@ def build_version_check_flex(local_version, remote_version=None, prs=None, error
     if has_update:
         buttons.append(command_button("版本更新", "版本更新"))
     return simple_flex("ChinoBot 版本檢查", lines, footer_buttons=buttons)
+
+
+def build_picsearch_api_version_check_flex(local_version, remote_version=None, error=None):
+    has_update = bool(remote_version and remote_version != local_version)
+    if error:
+        lines = [
+            "圖搜api版本檢查",
+            f"目前版本：{local_version}",
+            f"狀態：{error}",
+        ]
+    else:
+        lines = [
+            "圖搜api版本檢查",
+            f"目前版本：{local_version}",
+            f"遠端版本：{remote_version}",
+            "狀態：發現新版 PicImageSearch。" if has_update else "狀態：目前已是最新版本。",
+        ]
+    buttons = []
+    if has_update:
+        buttons.append(command_button("更新圖搜api", "更新圖搜api"))
+    return simple_flex("ChinoBot 圖搜api版本檢查", lines, footer_buttons=buttons or None)
 
 
 def version_notes_lines(value, limit=10):

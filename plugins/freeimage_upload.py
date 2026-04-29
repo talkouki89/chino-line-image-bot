@@ -33,10 +33,16 @@ def handle(ctx):
             description=f"Uploaded from chat {ctx.to}",
         )
         image = result.get("image") or {}
-        link = image.get("url_viewer") or image.get("url") or image.get("display_url")
-        if not link:
+        viewer_link = image.get("url_viewer") or image.get("url_short")
+        direct_link = image.get("url") or image.get("display_url")
+        if not viewer_link and not direct_link:
             raise RuntimeError(result)
-        ctx.cl.relatedMessage(ctx.to, f"圖片上傳完成：\n{link}", ctx.msg_id)
+        lines = ["圖片上傳完成："]
+        if viewer_link:
+            lines.append(f"頁面連結：{viewer_link}")
+        if direct_link:
+            lines.append(f"圖片URL：{direct_link}")
+        ctx.cl.relatedMessage(ctx.to, "\n".join(lines), ctx.msg_id)
     except Exception as exc:
         ctx.log_error(exc)
         if "私訊 E2EE" in str(exc) or str(exc).startswith("圖片下載失敗："):

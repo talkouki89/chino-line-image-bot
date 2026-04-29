@@ -6,12 +6,10 @@ ChinoBot 2.0｜圖搜指令
 回覆搜1  SauceNAO
 回覆搜2  Ascii2D
 回覆搜3  TraceMoe
-回覆搜4  E-Hentai
-回覆搜5  ExHentai
-回覆搜6  Copyseeker
-回覆搜7  Yandex
-回覆搜8  Iqdb
-回覆搜9  AnimeTrace
+回覆搜4  Yandex
+回覆搜5  Iqdb
+回覆搜6  AnimeTrace
+回覆搜7  GGJAV 女優辨識
 
 【X / Twitter】
 x;URL     下載 URL 內的圖片或影片
@@ -35,9 +33,9 @@ c:數字     解析禁漫天堂作品
 p:數字     解析 Pixiv 作品
 
 【建議用途】
-1 / 2 / 6 / 7 / 8：圖片來源
+1 / 2 / 4 / 5：圖片來源
 3：動畫番劇截圖
-9：動畫角色辨識
-4 / 5：E-Hentai / ExHentai
+6：動畫角色辨識
+7：女優辨識
 
 作者：智乃

@@ -100,6 +100,26 @@ cl.unsendMessage(message_id)
 cl.sendImage(group_mid, r"C:\temp\image.jpg")
 ```
 
+### `sendReplyImage(relatedMessageId, to, path)`
+
+圖片回覆 API。傳入要回覆的訊息 ID、聊天室 MID 與本機圖片路徑，會用圖片訊息回覆指定訊息。
+
+```python
+cl.sendReplyImage(msg.id, msg.to, r"C:\temp\reply.png")
+```
+
+在 plugin 裡通常可以直接使用目前事件的內容：
+
+```python
+def handle(ctx):
+    if ctx.cmd == "圖片回覆":
+        ctx.cl.sendReplyImage(ctx.msg_id, ctx.to, r"C:\temp\reply.png")
+        return True
+    return False
+```
+
+這個方法適合之後需要「用圖片回覆某則訊息」的功能，例如產生圖片、下載圖片後再回覆原指令。
+
 ### `sendVideo(to, path)`
 
 傳送本機影片檔案。

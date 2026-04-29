@@ -74,6 +74,15 @@ FIELD_ALIASES = {
         "thumbnailUrl": 23,
         "statusMessage": 24,
     },
+    "Settings": {
+        "privacySearchByUserid": 13,
+        "privacySearchByPhoneNumber": 7,
+        "privacySearchByEmail": 14,
+        "privacyAllowSecondaryDeviceLogin": 21,
+        "preferenceLocale": 15,
+        "privacyReceiveMessagesFromNotFriend": 25,
+        "e2eeEnable": 33,
+    },
     "Contact": {
         "mid": 1,
         "type": 10,
@@ -353,6 +362,9 @@ class LINE:
     def updateProfileAttribute(self, attrId: int, value: str) -> Any:
         return self._client.updateProfileAttribute(attrId, value)
 
+    def getSettings(self, syncReason: int = 2):
+        return _wrap(self._client.getSettings(syncReason), "Settings")
+
     def getContact(self, mid: str):
         return _wrap(self._client.getContact(mid), "Contact")
 
@@ -376,6 +388,9 @@ class LINE:
 
     def getChatV2(self, chat_mid: str):
         return self.getChats(chat_mid)
+
+    def reissueChatTicket(self, groupMid: str):
+        return self._client.reissueChatTicket(groupMid)
 
     def getAllChatMids(self, *args, **kwargs):
         return _wrap(self._client.getAllChatMids(*args, **kwargs), "GetAllChatMidsResponse")
@@ -449,6 +464,25 @@ class LINE:
 
     def sendReplyMessage(self, relatedMessageId, to, text, contentMetadata=None, contentType=0):
         return self.sendMessage(to, text, contentMetadata or {}, contentType, relatedMessageId)
+
+    def sendReplyImage(self, relatedMessageId: str, to: str, path: str):
+        return self._client.uploadObjTalk(
+            pathOrBytes=path,
+            oType="image",
+            to=to,
+            talkMeta=self._reply_talk_meta(relatedMessageId, to),
+        )
+
+    def _reply_talk_meta(self, relatedMessageId: str, to: str):
+        related_service_code = 2 if self._client.getToType(to) == 4 else 1
+        params = [
+            [11, 21, relatedMessageId],
+            [8, 22, 3],
+            [8, 24, related_service_code],
+        ]
+        data = self._client.generateDummyProtocolField(params, 3) + [0]
+        message = base64.b64encode(bytes(data)).decode("utf-8")
+        return base64.b64encode(json.dumps({"message": message}).encode("utf-8")).decode("utf-8")
 
     def sendLiff(self, to, messages, liffId="2009929108-vOiudUbo"):
         return self._client.sendLiff(to, messages, liffId=liffId)

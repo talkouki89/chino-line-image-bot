@@ -3,58 +3,60 @@ FEATURE_KEY = "image_draw_template"
 from urllib.parse import quote
 
 LIFF_COMMAND_URL = "line://app/2009929108-vOiudUbo?type=text&text={text}&auto=yes"
+LOLICON_API_DOCS_URL = "https://docs.api.lolicon.app/"
 
 GAME_TAGS = [
     ("Nikke", "Nikke"),
     ("原神", "原神"),
-    ("崩鐵", "崩铁"),
+    ("崩鐵", "崩鐵"),
     ("明日方舟", "明日方舟"),
     ("終末地", "終末地"),
-    ("異環", "异环"),
+    ("異環", "異環"),
     ("Fate/GrandOrder", "fgo"),
     ("公主連結", "pcr"),
     ("碧藍幻想", "gbf"),
-    ("碧藍航線", "舰b"),
-    ("艦隊collection", "舰c"),
+    ("碧藍航線", "艦B"),
+    ("艦隊collection", "艦C"),
     ("少女前線", "少前"),
-    ("蔚藍檔案", "碧蓝档案"),
-    ("絕區零", "绝区零"),
-    ("鳴潮", "鸣潮"),
+    ("蔚藍檔案", "蔚藍檔案"),
+    ("絕區零", "絕區零"),
+    ("鳴潮", "鳴潮"),
     ("Shadowverse", "Shadowverse"),
 ]
 
 OTHER_TAGS = [
     ("JC", "JC"),
     ("正太", "正太"),
-    ("蘿莉", "萝莉"),
+    ("蘿莉", "蘿莉"),
     ("御姐", "御姐"),
-    ("白髮", "白发"),
-    ("黑髮", "黑发"),
-    ("白絲", "白丝"),
-    ("黑絲", "黑丝"),
+    ("白髮", "白髮"),
+    ("黑髮", "黑髮"),
+    ("白絲", "白絲"),
+    ("黑絲", "黑絲"),
     ("制服", "制服"),
-    ("女僕", "女仆"),
+    ("女僕", "女僕"),
     ("泳衣", "泳衣"),
+    ("白虎", "白虎"),
     ("男娘", "男娘"),
     ("扶他", "扶他"),
-    ("性轉", "性转"),
+    ("性轉", "性轉"),
     ("VTB", "vtb"),
 ]
 
 CHARACTER_TAGS = [
-    ("真尋", "真寻"),
+    ("真尋", "真尋"),
     ("伊莉雅", "伊莉雅"),
     ("酒吞童子", "酒吞童子"),
-    ("星野愛", "星野爱"),
-    ("水宮樞", "水宫枢"),
+    ("星野愛", "星野愛"),
+    ("水宮樞", "水宮樞"),
     ("初音", "初音"),
     ("草神", "草神"),
     ("花火", "花火"),
-    ("星見雅", "星见雅"),
-    ("長離", "长离"),
+    ("星見雅", "星見雅"),
+    ("長離", "長離"),
     ("大黑塔", "大黑塔"),
-    ("聖園彌香", "圣园弥香"),
-    ("優香", "优香"),
+    ("聖園彌香", "聖園彌香"),
+    ("優香", "優香"),
     ("小春", "小春"),
     ("白子", "白子"),
     ("妃咲", "妃咲"),
@@ -76,9 +78,9 @@ def build_draw_template():
             "type": "carousel",
             "contents": [
                 random_draw_bubble(),
-                tag_bubble("遊戲 / 作品標籤", "第二頁", GAME_TAGS),
-                tag_bubble("其他標籤", "第三頁", OTHER_TAGS),
-                tag_bubble("人物標籤", "第四頁", CHARACTER_TAGS),
+                tag_bubble("遊戲 / 作品標籤", GAME_TAGS),
+                tag_bubble("其他標籤", OTHER_TAGS),
+                tag_bubble("人物標籤", CHARACTER_TAGS),
             ],
         },
     }
@@ -104,17 +106,16 @@ def random_draw_bubble():
             button("R18 色圖", "r18色圖"),
             button("R18 無 AI", "r18無ai"),
             button("Tag 色圖", "tag色圖"),
+            url_button("Lolicon API", LOLICON_API_DOCS_URL),
         ],
     )
 
 
-def tag_bubble(title_text, page_text, tags):
+def tag_bubble(title_text, tags):
     contents = [
         title(title_text),
-        note(page_text),
         note("這邊為標籤 Tags 抽圖，所以可能會出 R18 的圖，請小心服用。"),
         note("有時也會出現可能跟標籤有差別的圖。"),
-        note("按鈕顯示為繁體，送出的標籤會盡量使用簡體。"),
         separator(),
     ]
     return bubble(contents, [tag_button(label, tag) for label, tag in tags])
@@ -185,5 +186,19 @@ def button(label, command):
             "type": "uri",
             "label": label,
             "uri": LIFF_COMMAND_URL.format(text=quote(command, safe="")),
+        },
+    }
+
+
+def url_button(label, url):
+    return {
+        "type": "button",
+        "style": "primary",
+        "height": "sm",
+        "color": "#f08ab8",
+        "action": {
+            "type": "uri",
+            "label": label,
+            "uri": url,
         },
     }

@@ -9,13 +9,13 @@
 ## 主要功能
 
 - LINE 登入、收訊與回覆
-- 圖片反搜：SauceNAO、Ascii2D、TraceMoe、AnimeTrace、E-Hentai、ExHentai、Copyseeker、Yandex、Iqdb
+- 圖片反搜：SauceNAO、Ascii2D、TraceMoe、AnimeTrace、Yandex、Iqdb、GGJAV
 - LINE Flex Message / LIFF 搜尋結果模板，支援回覆私訊 E2EE 圖片進行圖搜
 - 抽圖功能使用 [Lolicon API](https://docs.api.lolicon.app/#/setu) 取得隨機圖與標籤圖
 - X/Twitter、YouTube 下載相關指令
 - nHentai、紳士漫畫、禁漫天堂、Pixiv 編號解析模板
 - Freeimage.host 圖床上傳
-- 黑名單、管理員、標籤資料儲存
+- 管理員、使用次數、標籤資料儲存
 
 ## 專案結構
 
@@ -24,15 +24,29 @@
 ├── main.py              # Bot 主程式與指令處理
 ├── line_api_compat.py   # 將 CHRLINE-Patch 包成舊 linepy 風格的相容層
 ├── plugins/             # 熱載入外掛與輔助模組
-│   ├── image_search.py  # 回覆搜 / 模板搜
-│   ├── freeimage_upload.py # #圖片上傳
-│   ├── media_tools.py   # X、yt-dlp、標註查詢、小工具
+│   ├── __init__.py
 │   ├── broadcast.py     # 管理員群發文字、圖片、影片
-│   ├── wnacg.py         # w: 紳士漫畫解析
+│   ├── example.py       # 熱載入外掛範例
+│   ├── freeimage_upload.py # #圖片上傳
+│   ├── image_draw_template.py # 抽圖 / 標籤抽圖模板
+│   ├── image_search.py  # 回覆搜 / 模板搜
 │   ├── jmcomic_lookup.py # c: 禁漫天堂解析
-│   ├── pixiv_lookup.py  # p: Pixiv 解析
+│   ├── media_tools.py   # X/Twitter、yt-dlp、抽圖與 Lolicon API
+│   ├── mention_tools.py # 誰標我 / 清空標註
 │   ├── nhentai.py       # nHentai 編號解析與 Popular Now
-│   └── core/            # 共用工具：Flex 模板、作品模板、Freeimage.host、X 解析
+│   ├── pixiv_lookup.py  # p: Pixiv 解析
+│   ├── wnacg.py         # w: 紳士漫畫解析
+│   └── core/            # 共用工具
+│       ├── __init__.py
+│       ├── cooldown.py  # 抽圖冷卻
+│       ├── features.py  # 功能開關定義
+│       ├── freeimage.py # Freeimage.host API
+│       ├── gallery_template.py # 作品解析 Flex 模板
+│       ├── help_template.py # 說明 / 狀態 / 版本模板
+│       ├── template.py  # 圖搜結果 Flex 模板
+│       ├── text_convert.py # 繁簡轉換
+│       ├── web_image_search.py # GGJAV 等網頁圖搜輔助
+│       └── x.py         # X/Twitter 媒體解析
 ├── CHRLINE/             # CHRLINE-Patch client
 ├── CHRLINE-Thrift/      # CHRLINE-Thrift definitions
 ├── docs/                # 開發文件與 line_api_compat API 參考
@@ -112,9 +126,7 @@ CHRLINE 會在 `CHRLINE/` 內產生 `.data`、`.e2eekey`、token 與登入憑證
 
 最新 PicImageSearch 仍支援同步語法，例如 `from PicImageSearch.sync import SauceNAO`。本專案目前使用同步版本，並做了這些調整：
 
-- `CopyseekerSync` 改成搭配 `Network` client 使用，符合新版範例。
 - `Ascii2D` 的入口清單、SSL 驗證、proxy 改成環境變數；若官方站或代理入口被 Cloudflare 擋住，可用 `ASCII2D_BASE_URLS` 加可用鏡像。
-- `EHENTAI_COOKIES` / `EXHENTAI_COOKIES` 改由 `.env` 提供，不再把 cookie 寫死在程式碼。
 - `NHENTAI_COOKIE` 可選填；如果 nHentai 首頁被 Cloudflare 擋住，Popular Now 需要填瀏覽器 cookie 才能抓到。
 - 反搜結果增加空結果檢查，避免 `resp.raw[0]` 直接炸掉。
 - `YTDLP_COOKIES_FILE` 是 yt-dlp 的選填 cookie 檔路徑；檔案存在才會使用。
@@ -166,6 +178,7 @@ def handle(ctx):
    - `plugins/pixiv_lookup.py`：`p:數字`
    - `plugins/nhentai.py`：`n:數字` / `n:popular`
    - `plugins/media_tools.py`：隨機圖、R18 圖、X/Twitter、yt-dlp
+   - `plugins/mention_tools.py`：`誰標我` / `清空標註`
    - `plugins/freeimage_upload.py`：`#圖片上傳`
    - `plugins/image_draw_template.py`：抽圖模板
 3. 不想刪除原始碼時，可以把檔名改成底線開頭，例如 `plugins/_wnacg.py`。PluginManager 會略過底線開頭的檔案。
@@ -200,7 +213,13 @@ def handle(ctx):
 - `功能狀態`
 - `版本檢查`
 - `版本更新`
-- `回覆搜1` ~ `回覆搜11`
+- `圖搜api版本檢查`
+- `更新圖搜api`
+- `pic:about`
+- `rg` / `群組資訊`
+- `mymid` / `gid` / `mid @人`
+- `data`
+- `回覆搜1` ~ `回覆搜7`
 - `模板搜1` ~ `模板搜3`
 - `x;URL`
 - `#圖片上傳`
@@ -218,9 +237,7 @@ def handle(ctx):
 - `w:數字`
 - `c:數字`
 - `p:數字`
-- `xs:關鍵字`
 - `lg`
-- `pic:about`
 - `pic:reb`
 
 ## 版本檢查與更新
@@ -238,23 +255,6 @@ def handle(ctx):
 
 LIFF 專案網址：[chino-liff](https://github.com/talkouki89/chino-liff)。可以直接使用這個 LIFF，也可以自行 clone 後建立自己的 LINE LIFF App，再把程式內的 LIFF ID 換成自己的。
 
-## imsearch / Soutubot
-
-`回覆搜10` 預設會嘗試使用 [soutubot.moe](https://soutubot.moe/) 的網頁端點。若網站被 Cloudflare 或其他限制擋住，可以自行部署 [lolishinshi/imsearch](https://github.com/lolishinshi/imsearch)。
-
-```powershell
-docker run -it -v ./imsearch:/root/.config/imsearch aloxaf/imsearch:latest --help
-```
-
-建立索引並啟動 HTTP server 後，在 `.env` 填：
-
-```env
-IMSEARCH_API_URL=http://127.0.0.1:8000
-IMSEARCH_TOKEN=
-```
-
-`imsearch` 是 GPL-3.0 授權的 Rust 專案，本專案不直接內嵌其源碼，避免授權邊界混亂。
-
 ## 第三方項目
 
 本專案使用或相容下列第三方項目，請同時遵守各自授權與使用規範：
@@ -264,7 +264,6 @@ IMSEARCH_TOKEN=
 - [PicImageSearch](https://github.com/kitUIN/PicImageSearch)
 - [Lolicon API](https://docs.api.lolicon.app/#/setu)
 - [chino-liff](https://github.com/talkouki89/chino-liff)
-- [lolishinshi/imsearch](https://github.com/lolishinshi/imsearch)
 - [jmcomic](https://github.com/hect0x7/JMComic-Crawler-Python)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 - [Freeimage.host API](https://freeimage.host/page/api)

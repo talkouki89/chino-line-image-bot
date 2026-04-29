@@ -1,7 +1,10 @@
 import json
 import os
 import re
+import shutil
+import tempfile
 import threading
+from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -15,6 +18,7 @@ from plugins.core.x import detect_file_type, fetch_media_urls
 FEATURE_KEY = "media_tools"
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOLICON_API_URL = "https://api.lolicon.app/setu/v2"
+URL_RE = re.compile(r"https?://[^\s<>\"]+")
 RANDOM_IMAGE_COMMANDS = {
     "隨機圖": (0, False),
     "隨機色圖": (0, False),
@@ -48,10 +52,6 @@ def handle(ctx):
         return handle_random_lolicon(ctx, r18=r18, exclude_ai=exclude_ai)
     if ctx.cmd.startswith(TAG_IMAGE_PREFIXES):
         return handle_lolicon_tags(ctx)
-    if ctx.cmd == "誰標我":
-        return handle_who_mentioned_me(ctx)
-    if ctx.cmd == "清空標註":
-        return handle_clear_mentions(ctx)
     return False
 
 
@@ -66,95 +66,150 @@ def check_lolicon_cooldown(ctx):
 
 
 def handle_x_url(ctx):
-    if not ctx.is_creator:
-        ctx.reply("此為作者使用功能٩(ˊᗜˋ*)و")
-        return True
     parts = ctx.text.split(";", 1)
-    if len(parts) < 2 or not parts[1].strip():
-        ctx.reply("請輸入 X/Twitter 網址。")
+    url = extract_url(parts[1] if len(parts) == 2 else "")
+    if not url:
+        ctx.reply("請輸入 X/Twitter 網址。\n範例：x;https://x.com/user/status/123")
         return True
-    send_x_media(ctx, parts[1].strip())
+    send_x_media(ctx, url)
     return True
 
 
 def handle_reply_x(ctx):
-    if not ctx.is_creator:
-        ctx.reply("此為作者使用功能٩(ˊᗜˋ*)و")
-        return True
     related_message_id = getattr(ctx.msg, "relatedMessageId", None)
     if not related_message_id:
-        ctx.reply("需回覆訊息來查詢")
+        ctx.reply("請回覆含有 X/Twitter 網址的訊息，再輸入 回覆搜x。")
         return True
 
     try:
         for recent in ctx.cl.getRecentMessagesV2(ctx.to, 1000):
             if recent.id != related_message_id:
                 continue
-            match = re.search(r"text='(https?://\S+)'", json.dumps(str(recent)))
-            if not match:
-                ctx.reply("找不到網址")
+            url = extract_url(getattr(recent, "text", "") or "")
+            if not url:
+                url = extract_url(json.dumps(str(recent), ensure_ascii=False))
+            if not url:
+                ctx.reply("找不到 X/Twitter 網址。")
                 return True
-            send_x_media(ctx, match.group(1))
+            send_x_media(ctx, url)
             return True
     except Exception as exc:
         ctx.log_error(exc)
-        ctx.reply("查詢失敗")
+        ctx.reply("回覆搜x 查詢失敗。")
         return True
 
-    ctx.reply("找不到回覆的訊息")
+    ctx.reply("找不到回覆的訊息。")
     return True
 
 
 def send_x_media(ctx, original_url):
     try:
         media_urls = fetch_media_urls(original_url)
+    except ValueError:
+        ctx.reply("這不是支援的 X/Twitter 網址。\n支援 x.com、twitter.com、vxtwitter.com、fxtwitter.com。")
+        return
     except Exception as exc:
         ctx.log_error(exc)
-        ctx.reply("X/Twitter 解析失敗，請確認網址是否正確")
+        ctx.reply("X/Twitter 解析失敗，請確認網址是否正確或稍後再試。")
         return
     if not media_urls:
-        ctx.reply("沒有找到可下載的 X/Twitter 媒體")
+        ctx.reply("沒有找到可下載的 X/Twitter 圖片或影片。")
         return
-    for media_url in media_urls:
-        send_media_url(ctx, media_url)
+    ctx.cl.sendReplyMessage(ctx.msg_id, ctx.to, f"找到 {len(media_urls)} 個 X/Twitter 媒體，開始傳送。")
+    failed = 0
+    for index, media_url in enumerate(media_urls, start=1):
+        if not send_media_url(ctx, media_url):
+            failed += 1
+    if failed:
+        ctx.reply(f"有 {failed} 個 X/Twitter 媒體傳送失敗。")
 
 
 def send_media_url(ctx, media_url):
     media_type = detect_file_type(media_url)
-    if media_type == "video":
-        ctx.cl.sendVideoWithURL(ctx.to, media_url)
-    elif media_type == "image":
-        ctx.cl.sendImageWithURL(ctx.to, media_url)
-    else:
-        ctx.reply("不支援的媒體格式")
+    try:
+        if media_type == "video":
+            ctx.cl.sendVideoWithURL(ctx.to, media_url)
+            return True
+        if media_type == "image":
+            ctx.cl.sendImageWithURL(ctx.to, media_url)
+            return True
+        ctx.reply(f"不支援的媒體格式：{media_url}")
+    except Exception as exc:
+        ctx.log_error(exc)
+    return False
 
 
 def handle_ytdlp(ctx):
-    url = ctx.text.split(":", 1)[1].strip()
+    url = extract_url(ctx.text.split(":", 1)[1] if ":" in ctx.text else "")
     if not url:
-        ctx.reply("請輸入影片網址。")
+        ctx.reply("請輸入影片網址。\n範例：ytmp4:https://youtu.be/xxxx")
         return True
-    output_file = f"{ctx.sender}.mp4"
-    ctx.cl.sendReplyMessage(ctx.msg_id, ctx.to, "開始下載影片")
-    try:
-        download_video(url, output_file)
-        ctx.cl.sendVideo(ctx.to, output_file)
-    except Exception as exc:
-        ctx.log_error(exc)
-        ctx.reply("影片下載失敗")
-    finally:
-        safe_remove(output_file)
+    if not is_http_url(url):
+        ctx.reply("影片網址格式不正確。")
+        return True
+    threading.Thread(
+        target=download_and_send_video,
+        args=(ctx, url),
+        daemon=True,
+    ).start()
     return True
 
 
-def download_video(url, output_file):
+def download_and_send_video(ctx, url):
+    temp_dir = tempfile.mkdtemp(prefix=f"chino-{ctx.sender}-")
+    ctx.cl.sendReplyMessage(ctx.msg_id, ctx.to, "開始下載影片，完成後會自動傳送。")
+    try:
+        output_file = download_video(url, temp_dir)
+        ctx.cl.sendVideo(ctx.to, output_file)
+    except Exception as exc:
+        ctx.log_error(exc)
+        ctx.reply("影片下載失敗，請確認網址是否可公開觀看，或稍後再試。")
+    finally:
+        safe_remove_tree(temp_dir)
+
+
+def download_video(url, output_dir):
     load_dotenv(os.path.join(ROOT_DIR, ".env"), override=True)
-    ydl_opts = {"format": "best", "outtmpl": output_file}
+    ydl_opts = {
+        # This bot usually runs without ffmpeg, so prefer a single mp4 file that
+        # already contains both audio and video instead of split streams.
+        "format": "best[ext=mp4][acodec!=none][vcodec!=none]/best[acodec!=none][vcodec!=none]",
+        "outtmpl": os.path.join(output_dir, "%(id)s.%(ext)s"),
+        "noplaylist": True,
+        "quiet": True,
+        "no_warnings": True,
+        "noprogress": True,
+        "windowsfilenames": True,
+    }
     cookies_file = os.getenv("YTDLP_COOKIES_FILE", "cookies.txt")
     if cookies_file and os.path.exists(cookies_file):
         ydl_opts["cookiefile"] = cookies_file
     with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+        info = ydl.extract_info(url, download=True)
+        for item in info.get("requested_downloads") or []:
+            path = item.get("filepath")
+            if path and os.path.exists(path) and os.path.getsize(path) > 0:
+                return path
+        path = ydl.prepare_filename(info)
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            return path
+    for filename in os.listdir(output_dir):
+        path = os.path.join(output_dir, filename)
+        if os.path.isfile(path) and os.path.getsize(path) > 0:
+            return path
+    raise FileNotFoundError("yt-dlp did not create a downloadable video file")
+
+
+def extract_url(value):
+    match = URL_RE.search(str(value or ""))
+    if not match:
+        return ""
+    return match.group(0).rstrip("。．，、；：！？.,;:!?)]}>\"'")
+
+
+def is_http_url(url):
+    parsed = urlparse(str(url))
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def handle_random_lolicon(ctx, r18=0, exclude_ai=False):
@@ -268,53 +323,22 @@ def format_bool_flag(value):
     return "是" if bool(value) else "否"
 
 
-def handle_who_mentioned_me(ctx):
-    tag_file = os.path.join(ctx.tag_dir, f"{ctx.sender}.json")
-    if not os.path.isfile(tag_file):
-        ctx.cl.sendMessage(ctx.to, "沒人要標你")
-        return True
-
-    with open(tag_file, "r", encoding="utf-8") as fp:
-        who_mark_me = json.load(fp)
-
-    if ctx.to not in who_mark_me or not who_mark_me[ctx.to]:
-        ctx.cl.sendMessage(ctx.to, "沒人要標你")
-        return True
-
-    tag_num = len(who_mark_me[ctx.to])
-    latest = who_mark_me[ctx.to].get(str(tag_num))
-    if not latest:
-        ctx.cl.sendMessage(ctx.to, "沒人要標你")
-        return True
-
-    contact = ctx.cl.getContact(str(latest["sender"]))
-    message = (
-        "上一位標註者\n"
-        f"{contact.displayName}\n"
-        f"時間：{latest['tagtime']}\n"
-        f"剩餘查詢次數：{tag_num - 1}"
-    )
-    ctx.cl.relatedMessage(ctx.to, message, latest["msgid"])
-    del who_mark_me[ctx.to][str(tag_num)]
-    with open(tag_file, "w", encoding="utf-8") as fp:
-        json.dump(who_mark_me, fp, sort_keys=True, indent=4, ensure_ascii=False)
-    return True
-
-
-def handle_clear_mentions(ctx):
-    tag_file = os.path.join(ctx.tag_dir, f"{ctx.sender}.json")
-    try:
-        os.remove(tag_file)
-        ctx.cl.sendMessage(ctx.to, "成功")
-    except FileNotFoundError:
-        ctx.reply("沒東西清")
-    return True
-
-
 def safe_remove(path):
     for _ in range(20):
         try:
             os.remove(path)
+            return
+        except FileNotFoundError:
+            return
+        except PermissionError:
+            import time
+            time.sleep(0.25)
+
+
+def safe_remove_tree(path):
+    for _ in range(20):
+        try:
+            shutil.rmtree(path)
             return
         except FileNotFoundError:
             return
