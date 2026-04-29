@@ -110,7 +110,7 @@ def bubble(body_contents, footer_contents):
             "type": "box",
             "layout": "vertical",
             "spacing": "sm",
-            "contents": footer_contents,
+            "contents": button_rows(footer_contents),
         },
     }
 
@@ -129,6 +129,21 @@ def separator():
 
 def tag_button(label, tag):
     return button(label, f"tag色圖 {tag}")
+
+
+def button_rows(buttons, columns=2):
+    rows = []
+    for index in range(0, len(buttons), columns):
+        row_buttons = buttons[index:index + columns]
+        while len(row_buttons) < columns:
+            row_buttons.append({"type": "box", "layout": "vertical", "contents": [], "flex": 1})
+        rows.append({
+            "type": "box",
+            "layout": "horizontal",
+            "spacing": "sm",
+            "contents": row_buttons,
+        })
+    return rows
 
 
 def button(label, command):
