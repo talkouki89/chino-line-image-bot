@@ -25,6 +25,7 @@ IMAGE_ENGINE_KEYS = [
 OTHER_FEATURE_KEYS = [
     "help_templates",
     "media_tools",
+    "broadcast",
     "image_draw_template",
     "freeimage_upload",
     "nhentai",
@@ -71,6 +72,7 @@ def build_help_flex(flags, is_admin=False):
             "管理員",
             "功能狀態 / 功能設定 / 功能切換 <key>",
             "版本檢查 / 版本更新",
+            "群發 內容 / 確認群發 / 取消群發",
             "lg / pic:reb / reb @bot",
             f"功能狀態：{feature_status_text(flags)}",
         ])

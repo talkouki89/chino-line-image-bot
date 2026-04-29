@@ -263,10 +263,7 @@ def search_as_text(engine, image_path):
         result = first_search_result(resp, "AnimeTrace")
         text = (
             "下面為AnimeTrace的圖搜結果"
-            f"\n\nTrace ID⇛ {getattr(resp, 'trace_id', 'N/A')}"
-            f"\nAI判定⇛ {getattr(resp, 'ai', 'N/A')}"
-            f"\nBox ID⇛ {result.box_id}"
-            f"\n座標⇛ {result.box}"
+            f"\n\nAI判斷⇛ {format_yes_no(getattr(resp, 'ai', None))}"
         )
         if result.characters:
             text += "\n\n可能角色:"
@@ -428,6 +425,17 @@ def env_bool(name, default=False):
     if raw is None:
         return default
     return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+def format_yes_no(value):
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("1", "true", "yes", "on"):
+            return "是"
+        if normalized in ("0", "false", "no", "off", "", "none", "null", "n/a"):
+            return "否"
+        return "是" if value else "否"
+    return "是" if bool(value) else "否"
 
 
 def safe_remove(path):

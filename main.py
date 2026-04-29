@@ -45,6 +45,7 @@ ERROR_LOG = os.path.join(ROOT_DIR, "errorLog.txt")
 FEATURE_FLAGS_PATH = os.path.join(DATA_DIR, "features.json")
 VERSION_FILE = os.path.join(ROOT_DIR, "VERSION")
 VERSION_NOTES_FILE = os.path.join(ROOT_DIR, "VERSION_NOTES.md")
+REQUIREMENTS_FILE = os.path.join(ROOT_DIR, "requirements.txt")
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION"
 REMOTE_VERSION_API_URL = "https://api.github.com/repos/talkouki89/chino-line-image-bot/contents/VERSION?ref=master"
 REMOTE_VERSION_NOTES_URL = "https://raw.githubusercontent.com/talkouki89/chino-line-image-bot/master/VERSION_NOTES.md"
@@ -536,6 +537,7 @@ def update_from_git():
     if branch != "master":
         return False, False, f"目前分支是 {branch}，請切回 master 後再更新。"
 
+    old_requirements = read_requirements_snapshot()
     subprocess.run(["git", "fetch", "origin", "master"], cwd=ROOT_DIR, check=True)
     result = subprocess.run(
         ["git", "pull", "--ff-only", "origin", "master"],
@@ -545,7 +547,39 @@ def update_from_git():
     )
     if result.returncode != 0:
         return False, False, (result.stderr or result.stdout or "git pull failed").strip()
-    return True, True, (result.stdout or "已更新到最新版本。").strip()
+    message = (result.stdout or "已更新到最新版本。").strip()
+    new_requirements = read_requirements_snapshot()
+    if old_requirements != new_requirements:
+        ok, install_message = install_requirements()
+        if not ok:
+            return False, True, f"{message}\n\nrequirements.txt 已變更，但依賴更新失敗：\n{install_message}"
+        message = f"{message}\n\nrequirements.txt 已變更，依賴已更新：\n{install_message}"
+    return True, True, message
+
+
+def read_requirements_snapshot():
+    try:
+        with open(REQUIREMENTS_FILE, "r", encoding="utf-8") as fp:
+            return fp.read()
+    except FileNotFoundError:
+        return ""
+
+
+def install_requirements():
+    if not os.path.isfile(REQUIREMENTS_FILE):
+        return True, "找不到 requirements.txt，略過依賴更新。"
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+    )
+    output = (result.stdout or "") + (result.stderr or "")
+    output = output.strip()
+    if result.returncode != 0:
+        return False, output or "pip install failed"
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    return True, "\n".join(lines[-8:]) if lines else "pip install completed"
 
 
 def parse_mentioned_mids(content_metadata):

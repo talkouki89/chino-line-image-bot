@@ -27,6 +27,7 @@
 │   ├── image_search.py  # 回覆搜 / 模板搜
 │   ├── freeimage_upload.py # #圖片上傳
 │   ├── media_tools.py   # X、yt-dlp、標註查詢、小工具
+│   ├── broadcast.py     # 管理員群發文字、圖片、影片
 │   ├── wnacg.py         # w: 紳士漫畫解析
 │   ├── jmcomic_lookup.py # c: 禁漫天堂解析
 │   ├── pixiv_lookup.py  # p: Pixiv 解析
@@ -37,8 +38,7 @@
 ├── docs/                # 開發文件與 line_api_compat API 參考
 ├── json/                # Bot 狀態資料
 ├── tag/                 # 使用者標籤資料
-├── help/                # 舊文字版指令說明
-└── Crt/                 # LINE 登入憑證/憑證資料
+└── help/                # 舊文字版指令說明
 ```
 
 ## 安裝
@@ -105,6 +105,8 @@ Copy-Item json\features.example.json json\features.json
 ```
 
 `tag/*.json` 是使用者標註紀錄，也已被 `.gitignore` 排除；`tag/.gitkeep` 只用來保留空資料夾。
+
+CHRLINE 會在 `CHRLINE/` 內產生 `.data`、`.e2eekey`、token 與登入憑證類資料。這些資料夾通常是隱藏檔案，需要開啟顯示隱藏檔才看得到。請妥善保管，不要外流，也不要在提供 API、壓縮專案或分享檔案時順手把這些憑證資料一起給出去。
 
 ### PicImageSearch 說明
 
@@ -208,6 +210,8 @@ def handle(ctx):
 - `r18色圖`
 - `r18無ai`
 - `tag色圖 標籤`
+- `群發 內容`
+- `確認群發` / `取消群發` / `群發狀態`
 - `ytmp4:URL`
 - `n:數字`
 - `n:popular`

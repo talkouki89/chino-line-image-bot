@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from yt_dlp import YoutubeDL
 
 from plugins.core.cooldown import check_draw_cooldown
+from plugins.core.text_convert import to_simplified, to_traditional
 from plugins.core.x import detect_file_type, fetch_media_urls
 
 
@@ -186,14 +187,16 @@ def handle_lolicon_tags(ctx):
         return True
     if not check_lolicon_cooldown(ctx):
         return True
+    query_tags = [to_simplified(tag) for tag in tags.split()]
+    display_tags = " ".join(to_traditional(tag) for tag in query_tags)
     try:
-        data = request_lolicon({"tag": [[tag] for tag in tags.split()], "r18": 1})
+        data = request_lolicon({"tag": [[tag] for tag in query_tags], "r18": 1})
     except Exception as exc:
         ctx.log_error(exc)
         ctx.reply("tag 色圖讀取失敗")
         return True
 
-    send_lolicon_result(ctx, data, label=f"Tag 色圖：{tags}")
+    send_lolicon_result(ctx, data, label=f"Tag 色圖：{display_tags}")
     return True
 
 

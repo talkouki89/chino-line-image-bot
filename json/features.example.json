@@ -1,5 +1,6 @@
 {
     "auto_friend": true,
+    "broadcast": true,
     "engine_animetrace": true,
     "engine_ascii2d": true,
     "engine_copyseeker": true,
