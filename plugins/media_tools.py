@@ -30,7 +30,7 @@ RANDOM_IMAGE_COMMANDS = {
     "無ai r18": (1, True),
     "r18色圖無ai": (1, True),
 }
-TAG_IMAGE_PREFIXES = ("tag色圖 ", "色圖tag ", "找色圖 ", "test3 ")
+TAG_IMAGE_PREFIXES = ("tag色圖", "色圖tag", "找色圖", "test3")
 
 
 def handle(ctx):
@@ -46,8 +46,6 @@ def handle(ctx):
         r18, exclude_ai = RANDOM_IMAGE_COMMANDS[ctx.cmd]
         return handle_random_lolicon(ctx, r18=r18, exclude_ai=exclude_ai)
     if ctx.cmd.startswith(TAG_IMAGE_PREFIXES):
-        if not check_lolicon_cooldown(ctx):
-            return True
         return handle_lolicon_tags(ctx)
     if ctx.cmd == "誰標我":
         return handle_who_mentioned_me(ctx)
@@ -57,6 +55,8 @@ def handle(ctx):
 
 
 def check_lolicon_cooldown(ctx):
+    if getattr(ctx, "is_admin", False):
+        return True
     allowed, remaining = check_draw_cooldown(ctx.sender)
     if not allowed:
         ctx.reply(f"抽圖冷卻中，請 {remaining} 秒後再試。")
@@ -180,11 +180,11 @@ def send_random_lolicon_async(ctx, r18=0, exclude_ai=False):
 
 
 def handle_lolicon_tags(ctx):
-    if not ctx.is_creator:
-        return True
     tags = extract_tag_query(ctx.text)
     if not tags:
-        ctx.reply("請輸入 tag，例如：tag色圖 貓耳")
+        ctx.reply("請輸入標籤 範例:tag色圖 蘿莉")
+        return True
+    if not check_lolicon_cooldown(ctx):
         return True
     try:
         data = request_lolicon({"tag": [[tag] for tag in tags.split()], "r18": 1})
@@ -226,7 +226,7 @@ def request_lolicon(extra_payload):
 
 def send_lolicon_result(ctx, data, label):
     if not data.get("data"):
-        ctx.reply("No data found in response.")
+        ctx.reply("搜尋不到你的標籤 可以嘗試用簡體搜尋喔")
         return
     item = data["data"][0]
     urls = item.get("urls") or {}
