@@ -52,10 +52,40 @@ FEATURE_DEFINITIONS = [
         "commands": "回覆搜7",
     },
     {
-        "key": "media_tools",
-        "name": "媒體工具",
-        "description": "X/Twitter、yt-dlp、隨機圖、R18 圖片。",
-        "commands": "x;URL / ytmp4:URL / 隨機圖 / r18色圖",
+        "key": "x_download",
+        "name": "X/Twitter 下載",
+        "description": "下載 X/Twitter 圖片或影片。",
+        "commands": "x:URL / 回覆搜x",
+    },
+    {
+        "key": "ytdlp_download",
+        "name": "yt-dlp 下載",
+        "description": "使用 yt-dlp 下載一般影片網址。",
+        "commands": "yt:URL",
+    },
+    {
+        "key": "facebook_download",
+        "name": "Facebook 下載",
+        "description": "透過 yt-dlp 下載 Facebook 影片。",
+        "commands": "fb:URL",
+    },
+    {
+        "key": "pornhub_download",
+        "name": "Pornhub 下載",
+        "description": "透過 yt-dlp 下載 Pornhub 影片。",
+        "commands": "ph:URL",
+    },
+    {
+        "key": "instagram_download",
+        "name": "Instagram 下載",
+        "description": "使用 yt-dlp 下載 Instagram 圖片或影片。",
+        "commands": "ig:URL",
+    },
+    {
+        "key": "tiktok_download",
+        "name": "TikTok 下載",
+        "description": "使用 yt-dlp 下載 TikTok 圖片或影片。",
+        "commands": "tk:URL",
     },
     {
         "key": "mention_tools",
@@ -72,8 +102,8 @@ FEATURE_DEFINITIONS = [
     {
         "key": "image_draw_template",
         "name": "抽圖模板",
-        "description": "用按鈕抽隨機圖、R18 圖、無 AI 圖。",
-        "commands": "抽圖 / 抽圖片",
+        "description": "抽圖模板、隨機圖、標籤隨機圖、R18 圖、無 AI 圖。",
+        "commands": "抽圖 / 隨機圖 / r18色圖 / tag色圖",
     },
     {
         "key": "freeimage_upload",

@@ -1,10 +1,20 @@
+# 2026.04.30.2
+
+- 新增 auth token 登入流程；有填 `LINE_AUTH_TOKEN` 時優先使用 token，未填才依序使用帳號密碼或 SQR 掃碼登入。
+- 拆分媒體下載功能：`x:URL`、`yt:URL`、`fb:URL`、`ph:URL`、`ig:URL`、`tk:URL` 分別放到獨立外掛，方便單獨開關與維護。
+- Instagram 圖片下載改用 Instaloader 優先處理，影片仍保留 yt-dlp fallback；可用 `INSTALOADER_SESSION_USER` 指定本機 session。
+- TikTok 圖片下載保留 API fallback，並支援 `DOUYIN_WTF_API_BASE` 改成自架解析服務。
+- help 模板改成媒體下載固定第二頁；管理員看到的管理員功能固定放最後一頁。
+- 移除無法穩定使用的舊下載入口，並清理相關功能開關、README、help 與依賴設定。
+- 更新 README 的專案結構、環境變數、媒體下載與敏感資料保管說明。
+
 # 2026.04.30.1
 
 - 調整圖搜說明與搜尋引擎編號，移除目前不可用的回覆搜項目，保留可用的 SauceNAO、Ascii2D、TraceMoe、Yandex、Iqdb、AnimeTrace、GGJAV。
 - 新增與整理管理員工具：`pic:about`、`rg` / `群組資訊`、`mymid`、`gid`、`mid @人`、`data`，並把 `bottoken` / `botauthtoken` 放到 BotCreator 專用區。
 - 優化 `pic:about`，避免部分 LINE API 回 500 時整個指令失敗，無法取得的帳號設定欄位不再顯示。
-- 優化 `x;URL` / `回覆搜x`，支援更多 X/Twitter 網域並改善網址解析、傳送結果與錯誤提示。
-- 修正 `ytmp4:URL` 的 yt-dlp 下載流程，優先選擇不需要 ffmpeg 合併的單檔影片，並改用暫存資料夾追蹤實際下載檔案。
+- 優化 `x:URL` / `回覆搜x`，支援更多 X/Twitter 網域並改善網址解析、傳送結果與錯誤提示。
+- 修正 `yt:URL` 的 yt-dlp 下載流程，優先選擇不需要 ffmpeg 合併的單檔影片，並改用暫存資料夾追蹤實際下載檔案。
 - 調整抽圖標籤模板與 tag 指令，新增標籤分類與繁簡處理，並修正搜尋不到時的提示文字。
 - 新增 Freeimage 直接圖片 URL 回傳，並補上圖片回覆 API 文件。
 - 拆分標註查詢工具到獨立外掛，更新功能開關、README 專案結構與常用指令說明。

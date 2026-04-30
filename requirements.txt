@@ -2,6 +2,7 @@ PicImageSearch @ git+https://github.com/kitUIN/PicImageSearch.git
 lxml>=6.1.0,<6.1.1
 pyquery>=2.0.1
 yt-dlp
+instaloader
 python-dotenv
 loguru
 jmcomic
