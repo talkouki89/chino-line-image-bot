@@ -136,8 +136,14 @@ CHRLINE 會在 `CHRLINE/` 內產生 `.data`、`.e2eekey`、token 與登入憑證
 最新 PicImageSearch 仍支援同步語法，例如 `from PicImageSearch.sync import SauceNAO`。本專案目前使用同步版本，並做了這些調整：
 
 - `Ascii2D` 的入口清單、SSL 驗證、proxy 改成環境變數；若官方站或代理入口被 Cloudflare 擋住，可用 `ASCII2D_BASE_URLS` 加可用鏡像。
-- `NHENTAI_COOKIE` 可選填；如果 nHentai 首頁被 Cloudflare 擋住，Popular Now 需要填瀏覽器 cookie 才能抓到。
 - 反搜結果增加空結果檢查，避免 `resp.raw[0]` 直接炸掉。
+
+### 作品解析設定
+
+- `NHENTAI_COOKIE` 可選填；如果 nHentai 首頁被 Cloudflare 擋住，Popular Now 需要填瀏覽器 cookie 才能抓到。
+
+### 媒體下載設定
+
 - `YTDLP_COOKIES_FILE` 是 yt-dlp 的選填 cookie 檔路徑；檔案存在才會使用。
 - `YTDLP_COOKIES_FROM_BROWSER` 可讓 yt-dlp 讀取瀏覽器 cookie，例如 `chrome`、`edge`、`firefox`。下載需要登入或年齡限制內容時建議先填這個。
 - `YTDLP_COOKIE` 可直接貼 cookie 字串，IG / TikTok 圖片 fallback 解析時會帶上。
