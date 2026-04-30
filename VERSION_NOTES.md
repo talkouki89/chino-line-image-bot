@@ -1,3 +1,14 @@
+# 2026.04.30.3
+
+- 新增 `回覆搜yt`、`回覆搜fb`、`回覆搜ph`、`回覆搜ig`、`回覆搜th`，可回覆含網址的訊息後直接下載對應媒體。
+- 新增管理員工具：`speedtest` 回傳測速結果圖片、`mid:MID` 查詢指定 MID 資料、`Contact @人` 以模板顯示好友資料。
+- `ren` 改成 Flex 模板顯示 Bot 運行時間，並加入功能開關與管理員模板。
+- 優化 `誰標我` / `清空標註`，改為只處理目前聊天室的標註紀錄，並加入公開 help 模板與 README 常用指令。
+- 整理 BotCreator / 管理員指令名稱與模板，補上圖搜權限、次數、備份、登入狀態、收回與加好友等常用入口。
+- 新增 Windows `ChinoBotLauncher.exe` 打包流程，支援自動下載專案、建立 `.env` 與 runtime JSON、建立虛擬環境、安裝依賴並啟動 Bot。
+- Windows launcher 會使用 `requirements.txt` hash 快取依賴狀態，第二次啟動若依賴沒有變更會跳過 pip 安裝檢查。
+- Windows launcher 支援 `icon/1.ico` 作為 exe 圖示，並補上 Linux 簡易安裝腳本。
+
 # 2026.04.30.2
 
 - 新增 auth token 登入流程；有填 `LINE_AUTH_TOKEN` 時優先使用 token，未填才依序使用帳號密碼或 SQR 掃碼登入。

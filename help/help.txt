@@ -15,13 +15,22 @@ ChinoBot 2.0｜圖搜指令
 x:URL     下載 X/Twitter URL 內的圖片或影片
 回覆搜x   回覆含 X/Twitter URL 的訊息後下載圖片或影片
 yt:URL    下載 YouTube 或 yt-dlp 支援的影片
+回覆搜yt  回覆影片 URL 後下載
 fb:URL    下載 Facebook 影片
+回覆搜fb  回覆 Facebook URL 後下載
 ph:URL    下載 Pornhub 影片
+回覆搜ph  回覆 Pornhub URL 後下載
 ig:URL    下載 Instagram 圖片或影片
+回覆搜ig  回覆 Instagram URL 後下載
+回覆搜th  回覆 Threads URL 後下載
 tk:URL    下載 TikTok 圖片或影片
 
 【圖床】
 #圖片上傳  回覆圖片後上傳到 Freeimage.host，回傳圖片網址
+
+【標註查詢】
+誰標我    查看目前聊天室最近標註你的人
+清空標註  清空目前聊天室的標註紀錄
 
 【隨機圖片】
 隨機圖       一般隨機圖

@@ -22,5 +22,6 @@ thrift
 qrcode
 Image
 rich
+speedtest-cli
 h2>=3.2.0
 opencc-python-reimplemented
