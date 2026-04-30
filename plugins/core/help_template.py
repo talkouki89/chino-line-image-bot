@@ -26,6 +26,8 @@ OTHER_FEATURE_KEYS = [
     "pornhub_download",
     "instagram_download",
     "tiktok_download",
+    "admin_profile_tools",
+    "runtime_tools",
     "mention_tools",
     "broadcast",
     "image_draw_template",
@@ -63,6 +65,7 @@ def build_help_flex(flags, is_admin=False):
         "",
         "其他功能",
         "抽圖 / 隨機圖 / r18色圖 / tag色圖 標籤",
+        "誰標我 / 清空標註",
         "#圖片上傳",
     ]
     download_lines = [
@@ -70,9 +73,14 @@ def build_help_flex(flags, is_admin=False):
         "x:URL 下載 X/Twitter 圖片或影片",
         "回覆搜x 回覆 X/Twitter 網址後下載圖片或影片",
         "yt:URL 下載影片",
+        "回覆搜yt 回覆影片網址後下載",
         "fb:URL 下載 Facebook 影片",
+        "回覆搜fb 回覆 Facebook 網址後下載",
         "ph:URL 下載 Pornhub 影片",
+        "回覆搜ph 回覆 Pornhub 網址後下載",
         "ig:URL 下載 Instagram 圖片或影片",
+        "回覆搜ig 回覆 Instagram 網址後下載",
+        "回覆搜th 回覆 Threads 網址後下載",
         "tk:URL 下載 TikTok 圖片或影片",
     ]
     admin_lines = [
@@ -85,10 +93,18 @@ def build_help_flex(flags, is_admin=False):
         "群發 / 確認群發 / 取消群發",
         "pic:about / rg / 群組資訊 / data",
         "mymid / gid / mid @人",
-        "lg / pic:reb / reb @bot",
+        "mid:MID / Contact @人 / speedtest",
+        "ren / res / 登入狀態 / lg",
+        "查詢剩餘次數 / 查詢使用次數",
+        "加次數:數字 / 減次數:數字",
+        "圖搜退 / sp / speedtest / un 數量",
+        "ad@ @人 / pic:reb / reb @bot",
         "",
         "BotCreator 專用",
-        "exec: / bottoken / botauthtoken",
+        "清圖搜權限表 / 圖搜權限表",
+        "標註加圖搜權限 @人 / 標註刪除圖搜權限 @人",
+        "add:MID / del:MID / exec:",
+        "bottoken / botauthtoken",
         f"功能狀態：{feature_status_text(flags)}",
     ]
     public_bubble = simple_bubble(public_lines)
@@ -121,8 +137,8 @@ def build_help_text(flags=None, is_admin=False):
         "回覆搜6：AnimeTrace，辨識角色或作品。",
         "回覆搜7：GGJAV，辨識女優。",
         "",
-        "其他：#圖片上傳、抽圖、tag色圖、n/w/c/p作品解析。",
-        "媒體下載：x:URL、回覆搜x、yt:URL、fb:URL、ph:URL、ig:URL、tk:URL。",
+        "其他：#圖片上傳、抽圖、tag色圖、誰標我、清空標註、n/w/c/p作品解析。",
+        "媒體下載：x:URL、回覆搜x、yt:URL、回覆搜yt、fb:URL、回覆搜fb、ph:URL、回覆搜ph、ig:URL、回覆搜ig、回覆搜th、tk:URL。",
     ]
     if is_admin:
         lines.extend([

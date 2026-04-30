@@ -20,6 +20,9 @@ AnimeTrace.jpg
 GGJAV.jpg
 *.mp4
 *.webp
+build/
+dist/
+*.spec
 
 # Runtime bot state / private LINE data
 json/ban.json

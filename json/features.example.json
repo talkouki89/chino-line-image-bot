@@ -24,5 +24,7 @@
     "wnacg": true,
     "x_download": true,
     "ytdlp_download": true,
-    "announcement_notify": false
+    "admin_profile_tools": true,
+    "announcement_notify": false,
+    "runtime_tools": true
 }

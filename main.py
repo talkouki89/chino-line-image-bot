@@ -838,6 +838,7 @@ def build_plugin_context(op, msg, text, cmd, to, sender, receiver, msg_id):
         ban=ban,
         datadir=datadir,
         tag_dir=TAG_DIR,
+        started_at=mulai,
         is_creator=is_botcreator(sender),
         is_admin=sender in ban["admin"],
         reply=reply,
@@ -1109,17 +1110,17 @@ def PicBot(op):
                     logError(exc)
                     cl.relatedMessage(to, f"圖搜api更新失敗：{exc}", op.message.id)
                 return
-            # 半垢主人專屬
+            # 管理員專屬
             if is_botcreator(sender):
                 # 刪除全部權限
-                if cmd == '清圖搜':
+                if cmd == '清圖搜權限表':
                     ban["admin"] = []
                     ban["admin"].append(clMID)
                     ban["admin"].append(botcreator)
                     backupData()
                     cl.relatedMessage(to, "清除全部人的權限ㄌ", op.message.id)
                 # 標記增加權限
-                elif cmd.startswith('加圖搜權限 '):
+                elif cmd.startswith('標註加圖搜權限 '):
                     MENTION = ast.literal_eval(msg.contentMetadata['MENTION'])
                     MENTION['MENTIONEES'][0]["M"]
                     for x in MENTION['MENTIONEES']:
@@ -1132,7 +1133,7 @@ def PicBot(op):
                             cl.sendMessage(to, "【{}】本來就有權限了".format(
                                 cl.getContact(x["M"]).displayName))
                 # 標記刪除權限
-                elif cmd.startswith('刪除圖搜權限 '):
+                elif cmd.startswith('標註刪除圖搜權限 '):
                     MENTION = ast.literal_eval(msg.contentMetadata['MENTION'])
                     MENTION['MENTIONEES'][0]["M"]
                     for x in MENTION['MENTIONEES']:
@@ -1246,7 +1247,7 @@ def PicBot(op):
                 elif cmd == 'allowliff':
                     cl.relatedMessage(
                         to, LIFF_ALLOW_MESSAGE, op.message.id) 
-                elif cmd.startswith('ad '):
+                elif cmd.startswith('ad ') or cmd.startswith('ad@'):
                     MENTION = ast.literal_eval(msg.contentMetadata['MENTION'])
                     inkey = MENTION['MENTIONEES'][0]['M']
                     cl.findAndAddContactsByMid(inkey)
