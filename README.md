@@ -12,7 +12,7 @@
 - 圖片反搜：SauceNAO、Ascii2D、TraceMoe、AnimeTrace、Yandex、Iqdb、GGJAV
 - LINE Flex Message / LIFF 搜尋結果模板，支援回覆私訊 E2EE 圖片進行圖搜
 - 抽圖功能使用 [Lolicon API](https://docs.api.lolicon.app/#/setu) 取得隨機圖與標籤圖
-- X/Twitter、YouTube 下載相關指令
+- X/Twitter、YouTube、Facebook、Pornhub、Instagram、TikTok 下載相關指令
 - nHentai、紳士漫畫、禁漫天堂、Pixiv 編號解析模板
 - Freeimage.host 圖床上傳
 - 管理員、使用次數、標籤資料儲存
@@ -28,14 +28,19 @@
 │   ├── broadcast.py     # 管理員群發文字、圖片、影片
 │   ├── example.py       # 熱載入外掛範例
 │   ├── freeimage_upload.py # #圖片上傳
-│   ├── image_draw_template.py # 抽圖 / 標籤抽圖模板
+│   ├── facebook_download.py # fb: Facebook 影片下載
+│   ├── image_draw_template.py # 抽圖 / 標籤抽圖模板與 Lolicon API
 │   ├── image_search.py  # 回覆搜 / 模板搜
+│   ├── instagram_download.py # ig: Instagram 圖片 / 影片下載
 │   ├── jmcomic_lookup.py # c: 禁漫天堂解析
-│   ├── media_tools.py   # X/Twitter、yt-dlp、抽圖與 Lolicon API
 │   ├── mention_tools.py # 誰標我 / 清空標註
 │   ├── nhentai.py       # nHentai 編號解析與 Popular Now
 │   ├── pixiv_lookup.py  # p: Pixiv 解析
+│   ├── pornhub_download.py # ph: Pornhub 影片下載
+│   ├── tiktok_download.py # tk: TikTok 圖片 / 影片下載
 │   ├── wnacg.py         # w: 紳士漫畫解析
+│   ├── x_download.py    # x:URL / 回覆搜x
+│   ├── ytdlp_download.py # yt:URL 與 yt-dlp 共用下載工具
 │   └── core/            # 共用工具
 │       ├── __init__.py
 │       ├── cooldown.py  # 抽圖冷卻
@@ -45,8 +50,7 @@
 │       ├── help_template.py # 說明 / 狀態 / 版本模板
 │       ├── template.py  # 圖搜結果 Flex 模板
 │       ├── text_convert.py # 繁簡轉換
-│       ├── web_image_search.py # GGJAV 等網頁圖搜輔助
-│       └── x.py         # X/Twitter 媒體解析
+│       └── web_image_search.py # GGJAV 等網頁圖搜輔助
 ├── CHRLINE/             # CHRLINE-Patch client
 ├── CHRLINE-Thrift/      # CHRLINE-Thrift definitions
 ├── docs/                # 開發文件與 line_api_compat API 參考
@@ -81,10 +85,15 @@ python -m pip install -r requirements.txt
 複製 `.env.example` 成 `.env`，再填入需要的帳號與 API key。下面每一項都有標註用途：
 
 ```env
-# [必填] LINE 登入帳號。
+# 登入優先順序：LINE_AUTH_TOKEN -> LINE_ACCOUNT / LINE_PASSWORD -> SQR 掃碼。
+
+# [選填] LINE auth token。也相容 LINE_AUTHTOKEN / BOT_AUTH_TOKEN。
+LINE_AUTH_TOKEN=
+
+# [選填] LINE 登入帳號。沒填 auth token 時才會使用。
 LINE_ACCOUNT=
 
-# [必填] LINE 登入密碼。
+# [選填] LINE 登入密碼。需與 LINE_ACCOUNT 一起填寫。
 LINE_PASSWORD=
 
 # [選填] SauceNAO API key。使用「回覆搜1 / 模板搜1」建議填。
@@ -130,6 +139,21 @@ CHRLINE 會在 `CHRLINE/` 內產生 `.data`、`.e2eekey`、token 與登入憑證
 - `NHENTAI_COOKIE` 可選填；如果 nHentai 首頁被 Cloudflare 擋住，Popular Now 需要填瀏覽器 cookie 才能抓到。
 - 反搜結果增加空結果檢查，避免 `resp.raw[0]` 直接炸掉。
 - `YTDLP_COOKIES_FILE` 是 yt-dlp 的選填 cookie 檔路徑；檔案存在才會使用。
+- `YTDLP_COOKIES_FROM_BROWSER` 可讓 yt-dlp 讀取瀏覽器 cookie，例如 `chrome`、`edge`、`firefox`。下載需要登入或年齡限制內容時建議先填這個。
+- `YTDLP_COOKIE` 可直接貼 cookie 字串，IG / TikTok 圖片 fallback 解析時會帶上。
+- `INSTALOADER_SESSION_USER` 可讓 Instagram 下載使用本機 Instaloader session；需要先用 `instaloader -l 使用者名稱` 建立。
+- `DOUYIN_WTF_API_BASE` 是 TikTok 圖片解析 API，預設使用 `https://douyin.wtf`，也可以改成自己部署的服務。
+
+### 媒體下載說明
+
+媒體下載已拆成多個獨立外掛，可以在 `功能設定` 中單獨開關：
+
+- `x:URL`：下載 X/Twitter 貼文內的圖片或影片；也支援回覆含 URL 的訊息後輸入 `回覆搜x`。
+- `yt:URL`：使用 yt-dlp 下載 YouTube 或 yt-dlp 支援的影片網址。
+- `fb:URL`：使用 yt-dlp 下載 Facebook 影片。
+- `ph:URL`：使用 yt-dlp 下載 Pornhub 影片。
+- `ig:URL`：Instagram 圖片優先使用 Instaloader，影片或 Instaloader 失敗時再 fallback 到 yt-dlp。
+- `tk:URL`：TikTok 影片走 yt-dlp，圖片會先嘗試 API fallback。
 
 ## 啟動
 
@@ -177,10 +201,15 @@ def handle(ctx):
    - `plugins/jmcomic_lookup.py`：`c:數字`
    - `plugins/pixiv_lookup.py`：`p:數字`
    - `plugins/nhentai.py`：`n:數字` / `n:popular`
-   - `plugins/media_tools.py`：隨機圖、R18 圖、X/Twitter、yt-dlp
    - `plugins/mention_tools.py`：`誰標我` / `清空標註`
    - `plugins/freeimage_upload.py`：`#圖片上傳`
-   - `plugins/image_draw_template.py`：抽圖模板
+   - `plugins/image_draw_template.py`：抽圖模板、隨機圖、R18 圖、tag 色圖
+   - `plugins/x_download.py`：`x:URL` / `回覆搜x`
+   - `plugins/ytdlp_download.py`：`yt:URL`
+   - `plugins/facebook_download.py`：`fb:URL`
+   - `plugins/pornhub_download.py`：`ph:URL`
+   - `plugins/instagram_download.py`：`ig:URL`
+   - `plugins/tiktok_download.py`：`tk:URL`
 3. 不想刪除原始碼時，可以把檔名改成底線開頭，例如 `plugins/_wnacg.py`。PluginManager 會略過底線開頭的檔案。
 4. 確認功能不再需要後，再刪除檔案或提交改名。
 
@@ -198,7 +227,7 @@ def handle(ctx):
 
 ```text
 功能切換 nhentai
-功能切換 media_tools
+功能切換 x_download
 功能切換 engine_saucenao
 功能切換 announcement_notify
 ```
@@ -209,43 +238,50 @@ def handle(ctx):
 
 實際指令請以 `main.py` 和 `plugins/` 內指令為準。常見功能包含：
 
-- `圖搜說明`
-- `功能狀態`
-- `版本檢查`
-- `版本更新`
-- `圖搜api版本檢查`
-- `更新圖搜api`
-- `pic:about`
-- `rg` / `群組資訊`
-- `mymid` / `gid` / `mid @人`
-- `data`
-- `回覆搜1` ~ `回覆搜7`
-- `模板搜1` ~ `模板搜3`
-- `x;URL`
-- `#圖片上傳`
-- `抽圖`
-- `隨機圖`
-- `隨機無ai`
-- `r18色圖`
-- `r18無ai`
-- `tag色圖 標籤`
-- `群發 內容`
-- `確認群發` / `取消群發` / `群發狀態`
-- `ytmp4:URL`
-- `n:數字`
-- `n:popular`
-- `w:數字`
-- `c:數字`
-- `p:數字`
-- `lg`
-- `pic:reb`
+- `圖搜說明`：顯示圖搜、媒體下載與常用功能模板。
+- `功能狀態`：管理員查看目前功能開關狀態。
+- `版本檢查`：管理員查看本機版本、遠端版本與更新內容。
+- `版本更新`：管理員從 GitHub 拉取新版，必要時更新依賴並重啟 Bot。
+- `圖搜api版本檢查`：管理員檢查 PicImageSearch 版本是否有更新。
+- `更新圖搜api`：管理員更新 PicImageSearch 依賴。
+- `pic:about`：管理員查看 Bot 帳號與執行資訊。
+- `rg` / `群組資訊`：管理員查看目前群組資訊。
+- `mymid`：管理員查看自己的 MID。
+- `gid`：管理員查看目前群組 GID。
+- `mid @人`：管理員查看被標註者的 MID。
+- `data`：管理員回覆訊息後查看該訊息原始資料。
+- `回覆搜1` ~ `回覆搜7`：回覆圖片後使用不同圖搜引擎搜尋圖片來源或相似結果。
+- `模板搜1` ~ `模板搜3`：BotCreator 回覆圖片後輸出指定圖搜引擎的模板結果。
+- `x:URL`：下載 X/Twitter 貼文內的圖片或影片。
+- `回覆搜x`：回覆含 X/Twitter URL 的訊息後下載其中圖片或影片。
+- `yt:URL`：下載 YouTube 或 yt-dlp 支援的影片。
+- `fb:URL`：下載 Facebook 影片。
+- `ph:URL`：下載 Pornhub 影片。
+- `ig:URL`：下載 Instagram 圖片或影片。
+- `tk:URL`：下載 TikTok 圖片或影片。
+- `#圖片上傳`：回覆圖片後上傳到 Freeimage.host，並回傳圖片網址。
+- `抽圖`：顯示抽圖模板。
+- `隨機圖`：取得一般隨機圖。
+- `隨機無ai`：取得排除 AI 標籤的隨機圖。
+- `r18色圖`：取得 R18 隨機圖。
+- `r18無ai`：取得排除 AI 標籤的 R18 隨機圖。
+- `tag色圖 標籤`：依指定標籤抽圖，會自動處理繁簡轉換。
+- `群發 內容`：管理員建立群發預覽。
+- `確認群發` / `取消群發` / `群發狀態`：管理員確認、取消或查看群發進度。
+- `n:數字`：解析 nHentai 作品資訊。
+- `n:popular`：顯示 nHentai Popular Now。
+- `w:數字`：解析紳士漫畫作品。
+- `c:數字`：解析禁漫天堂作品。
+- `p:數字`：解析 Pixiv 作品。
+- `lg`：管理員觸發登入/狀態相關工具。
+- `pic:reb`：管理員重啟 Bot。
 
 ## 版本檢查與更新
 
 專案根目錄有 `VERSION` 檔案，用來判斷目前版本；`VERSION_NOTES.md` 用來顯示版本更新內容。每次合併 PR 或發布更新時，請同步更新這兩個檔案。
 
 - `版本檢查`：讀取本機與 GitHub `master` 的 `VERSION` / `VERSION_NOTES.md`，若有新版會顯示最近合併 PR 與版本更新內容。
-- `版本更新`：管理員限定，會執行 `git fetch` 與 `git pull --ff-only origin master`。更新成功後 Bot 會自動重啟套用新程式。
+- `版本更新`：管理員限定，會執行 `git fetch` 與 `git pull --ff-only origin master`。更新後如果 `requirements.txt` 有變更，會先更新依賴，再自動重啟 Bot 套用新程式。
 
 若本機檔案和遠端更新真的衝突，`git pull` 會回傳錯誤並停止。
 
@@ -280,7 +316,7 @@ LIFF 專案網址：[chino-liff](https://github.com/talkouki89/chino-liff)。可
 
 - `.env`
 - `cookies.txt`
-- `Crt/`
+- `CHRLINE/` 內的 `.data`、`.e2eekey`、token 與登入憑證資料
 - `errorLog.txt`
 - 下載後產生的影片、圖片暫存檔
 

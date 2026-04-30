@@ -11,9 +11,14 @@ ChinoBot 2.0｜圖搜指令
 回覆搜6  AnimeTrace
 回覆搜7  GGJAV 女優辨識
 
-【X / Twitter】
-x;URL     下載 URL 內的圖片或影片
-回覆搜x   回覆 URL 後下載圖片或影片
+【媒體下載】
+x:URL     下載 X/Twitter URL 內的圖片或影片
+回覆搜x   回覆含 X/Twitter URL 的訊息後下載圖片或影片
+yt:URL    下載 YouTube 或 yt-dlp 支援的影片
+fb:URL    下載 Facebook 影片
+ph:URL    下載 Pornhub 影片
+ig:URL    下載 Instagram 圖片或影片
+tk:URL    下載 TikTok 圖片或影片
 
 【圖床】
 #圖片上傳  回覆圖片後上傳到 Freeimage.host，回傳圖片網址

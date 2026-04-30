@@ -20,7 +20,12 @@ IMAGE_ENGINE_KEYS = [
 
 OTHER_FEATURE_KEYS = [
     "help_templates",
-    "media_tools",
+    "x_download",
+    "ytdlp_download",
+    "facebook_download",
+    "pornhub_download",
+    "instagram_download",
+    "tiktok_download",
     "mention_tools",
     "broadcast",
     "image_draw_template",
@@ -59,11 +64,17 @@ def build_help_flex(flags, is_admin=False):
         "其他功能",
         "抽圖 / 隨機圖 / r18色圖 / tag色圖 標籤",
         "#圖片上傳",
-        "x;URL 下載 X/Twitter 圖片或影片",
-        "ytmp4:URL 下載影片",
     ]
-    if not is_admin:
-        return simple_flex("ChinoBot 指令說明", public_lines, footer_buttons=[uri_button("開啟 GitHub", GITHUB_URL)])
+    download_lines = [
+        "媒體下載",
+        "x:URL 下載 X/Twitter 圖片或影片",
+        "回覆搜x 回覆 X/Twitter 網址後下載圖片或影片",
+        "yt:URL 下載影片",
+        "fb:URL 下載 Facebook 影片",
+        "ph:URL 下載 Pornhub 影片",
+        "ig:URL 下載 Instagram 圖片或影片",
+        "tk:URL 下載 TikTok 圖片或影片",
+    ]
     admin_lines = [
         "管理員功能",
         "功能狀態",
@@ -82,15 +93,18 @@ def build_help_flex(flags, is_admin=False):
     ]
     public_bubble = simple_bubble(public_lines)
     public_bubble["footer"] = footer_buttons([uri_button("開啟 GitHub", GITHUB_URL)])
+    bubbles = [
+        public_bubble,
+        simple_bubble(download_lines),
+    ]
+    if is_admin:
+        bubbles.append(simple_bubble(admin_lines))
     return {
         "type": "flex",
         "altText": "ChinoBot 指令說明",
         "contents": {
             "type": "carousel",
-            "contents": [
-                public_bubble,
-                simple_bubble(admin_lines),
-            ],
+            "contents": bubbles,
         },
     }
 
@@ -108,7 +122,7 @@ def build_help_text(flags=None, is_admin=False):
         "回覆搜7：GGJAV，辨識女優。",
         "",
         "其他：#圖片上傳、抽圖、tag色圖、n/w/c/p作品解析。",
-        "媒體下載：x;URL 下載 X/Twitter 圖片或影片，ytmp4:URL 下載影片。",
+        "媒體下載：x:URL、回覆搜x、yt:URL、fb:URL、ph:URL、ig:URL、tk:URL。",
     ]
     if is_admin:
         lines.extend([

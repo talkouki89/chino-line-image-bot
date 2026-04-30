@@ -104,6 +104,7 @@ def env_int(name, default):
 load_dotenv(os.path.join(ROOT_DIR, '.env'))
 account = os.getenv('LINE_ACCOUNT')
 password = os.getenv('LINE_PASSWORD')
+auth_token = os.getenv('LINE_AUTH_TOKEN') or os.getenv('LINE_AUTHTOKEN') or os.getenv('BOT_AUTH_TOKEN')
 HOT_RELOAD_PLUGINS = env_bool("HOT_RELOAD_PLUGINS", True)
 botcreator = os.getenv('Creator')
 # Legacy variable names kept to avoid a large risky rewrite:
@@ -114,9 +115,14 @@ background = os.getenv('Dio_GID')
 GROUP_MIN_MEMBER_CHECK = env_bool("GROUP_MIN_MEMBER_CHECK", True)
 GROUP_MIN_MEMBERS = env_int("GROUP_MIN_MEMBERS", 10)
 
-# LINE login happens here. Editing main.py after this point still requires a
-# process restart; use plugins/ for commands that should hot-reload.
-cl = LINE(account, password)
+# LINE login happens here. Auth token is preferred, then account/password, then
+# CHRLINE's SQR login when both are missing.
+if auth_token:
+    cl = LINE(auth_token)
+elif account and password:
+    cl = LINE(account, password)
+else:
+    cl = LINE()
 
 # Persistent bot state.
 settings = load_json(os.path.join(DATA_DIR, "temp.json"), {"days": 0, "sc": 0})
