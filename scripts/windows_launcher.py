@@ -58,7 +58,14 @@ def setup_paths():
 
 def run(args, cwd=None):
     print(f"> {' '.join(str(arg) for arg in args)}")
-    subprocess.check_call(args, cwd=cwd or ROOT)
+    subprocess.check_call(args, cwd=cwd or ROOT, env=process_env())
+
+
+def process_env():
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
+    return env
 
 
 def find_system_python():
@@ -316,7 +323,7 @@ def launch_bot(wait=True):
         run(args)
         return None
     print(f"> {' '.join(args)}")
-    BOT_PROCESS = subprocess.Popen(args, cwd=ROOT)
+    BOT_PROCESS = subprocess.Popen(args, cwd=ROOT, env=process_env())
     return BOT_PROCESS
 
 

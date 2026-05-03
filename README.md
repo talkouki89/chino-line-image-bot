@@ -210,7 +210,7 @@ python main.py
 Releases 會提供兩個 Windows launcher，檔名會帶版本號：
 
 - `ChinoBotLauncher-版本-cli.exe`：原本的命令列版本，會顯示 CMD 視窗與完整輸出。
-- `ChinoBotLauncher-版本-gui.exe`：圖形介面版本，沒有 CMD 黑窗，可查看狀態、讀寫 `.env`、啟動 / 停止 Bot，並顯示專案圖片。
+- `ChinoBotLauncher-版本-gui.exe`：圖形介面版本，可查看 launcher 狀態、讀寫 `.env`、檢查環境、開啟專案資料夾，並啟動 / 停止 Bot。按下啟動後，Bot 主程式會另外開一個 CMD 視窗，LINE 登入驗證碼 / QR Code 與 Bot 詳細輸出會顯示在該視窗。
 
 可以把 exe 放在專案根目錄執行；如果只把 exe 放到空資料夾，它會自動下載 `chino-line-image-bot` 到同一個資料夾後再啟動。
 
@@ -261,7 +261,12 @@ python -m pip install pyinstaller
 powershell -ExecutionPolicy Bypass -File scripts\build_windows_launcher.ps1
 ```
 
-產生的 `dist\ChinoBotLauncher.exe` 是啟動器；如果 `icon\1.ico` 存在，打包時會自動套用為 exe 圖示。
+產生的檔案會放在 `dist\`，並依照 `VERSION` 自動帶版本號：
+
+- `dist\ChinoBotLauncher-版本-cli.exe`
+- `dist\ChinoBotLauncher-版本-gui.exe`
+
+如果 `pic\icon.ico` 存在，打包時會自動套用為 exe 圖示。
 
 第一次啟動可能需要完成 LINE 登入流程。`main.py` 是長駐輪詢程式，測試語法時建議使用 `python -m py_compile main.py`，不要直接執行登入流程。
 
