@@ -70,18 +70,23 @@ def build_help_flex(flags, is_admin=False):
     ]
     download_lines = [
         "媒體下載",
-        "x:URL 下載 X/Twitter 圖片或影片",
-        "回覆搜x 回覆 X/Twitter 網址後下載圖片或影片",
-        "yt:URL 下載影片",
+        "",
+        "X / Twitter",
+        "x:URL 下載單一貼文圖片或影片",
+        "x:URL URL 可一次貼多個 X 網址",
+        "回覆搜x 回覆 X 網址後下載",
+        "",
+        "影片平台",
+        "yt:URL 下載 YouTube 或 yt-dlp 支援網址",
         "回覆搜yt 回覆影片網址後下載",
-        "fb:URL 下載 Facebook 影片",
-        "回覆搜fb 回覆 Facebook 網址後下載",
-        "ph:URL 下載 Pornhub 影片",
-        "回覆搜ph 回覆 Pornhub 網址後下載",
-        "ig:URL 下載 Instagram 圖片或影片",
-        "回覆搜ig 回覆 Instagram 網址後下載",
-        "回覆搜th 回覆 Threads 網址後下載",
+        "fb:URL / 回覆搜fb 下載 Facebook 影片",
+        "ph:URL / 回覆搜ph 下載 Pornhub 影片",
+        "",
+        "社群圖片 / 影片",
+        "ig:URL / 回覆搜ig 下載 Instagram 媒體",
         "tk:URL 下載 TikTok 圖片或影片",
+        "",
+        "多張圖片會合併成一組傳送",
     ]
     admin_lines = [
         "管理員功能",
@@ -138,7 +143,7 @@ def build_help_text(flags=None, is_admin=False):
         "回覆搜7：GGJAV，辨識女優。",
         "",
         "其他：#圖片上傳、抽圖、tag色圖、誰標我、清空標註、n/w/c/p作品解析。",
-        "媒體下載：x:URL、回覆搜x、yt:URL、回覆搜yt、fb:URL、回覆搜fb、ph:URL、回覆搜ph、ig:URL、回覆搜ig、回覆搜th、tk:URL。",
+        "媒體下載：x:URL、回覆搜x、yt:URL、回覆搜yt、fb:URL、回覆搜fb、ph:URL、回覆搜ph、ig:URL、回覆搜ig、tk:URL。",
     ]
     if is_admin:
         lines.extend([

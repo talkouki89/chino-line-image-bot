@@ -61,7 +61,7 @@ FEATURE_DEFINITIONS = [
         "key": "ytdlp_download",
         "name": "yt-dlp 下載",
         "description": "使用 yt-dlp 下載一般影片網址。",
-        "commands": "yt:URL / 回覆搜yt / 回覆搜th",
+        "commands": "yt:URL / 回覆搜yt",
     },
     {
         "key": "facebook_download",
