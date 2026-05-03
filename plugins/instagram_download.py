@@ -23,6 +23,26 @@ from plugins.ytdlp_download import (
 FEATURE_KEY = "instagram_download"
 SHORTCODE_RE = re.compile(r"instagram\.com/(?:p|reel|tv)/([^/?#]+)", re.IGNORECASE)
 MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".m4v", ".webm"}
+MAX_INSTAGRAM_MEDIA = 20
+ACCESS_LIMIT_MARKERS = (
+    "403",
+    "Forbidden",
+    "login",
+    "Login",
+    "private",
+    "Private",
+    "restricted",
+    "Restricted",
+    "not found",
+    "not exist",
+    "Please wait",
+    "rate limit",
+    "checkpoint",
+    "challenge",
+    "metadata failed",
+    "Fetching Post metadata failed",
+    "too many files",
+)
 
 
 def handle(ctx):
@@ -78,9 +98,15 @@ def download_instagram_media(url, output_dir):
                 return files, ""
         except (LoginRequiredException, QueryReturnedForbiddenException, ConnectionException) as exc:
             instaloader_warning = instagram_blocked_message(exc)
+            if is_instagram_access_limited(exc):
+                return [], instaloader_warning
         except Exception as exc:
             instaloader_warning = instagram_blocked_message(exc)
+            if is_instagram_access_limited(exc):
+                return [], instaloader_warning
     files = download_media(url, output_dir, prefer_direct=True)
+    if shortcode and len(files) > MAX_INSTAGRAM_MEDIA:
+        return [], instagram_blocked_message("fallback collected too many files from instagram html")
     return files, instaloader_warning if not files else ""
 
 
@@ -96,8 +122,8 @@ def download_with_instaloader(shortcode, output_dir):
         loader.load_session_from_file(session_user)
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         post = Post.from_shortcode(loader.context, shortcode)
-    urls = instagram_post_media_urls(post)
-    download_urls(urls, output_dir, referer=f"https://www.instagram.com/p/{shortcode}/")
+        urls = instagram_post_media_urls(post)
+        download_urls(urls, output_dir, referer=f"https://www.instagram.com/p/{shortcode}/")
 
 
 def instagram_post_media_urls(post):
@@ -116,9 +142,14 @@ def instagram_post_media_urls(post):
 
 def instagram_blocked_message(exc):
     text = str(exc)
-    if "403" in text or "Forbidden" in text:
-        return "Instagram 回傳 403，通常代表該貼文或帳號需要登入、被限制、或暫時阻擋第三方解析。可以先設定 INSTALOADER_SESSION_USER 登入 session 再試。"
+    if is_instagram_access_limited(exc):
+        return "Instagram 下載失敗：這篇貼文或帳號可能有限制、需要登入、非公開，或 Instagram 暫時阻擋第三方解析。為避免傳出登入頁或錯誤圖片，這次不會改用 fallback 抓取。可先確認瀏覽器是否能開啟，或設定 INSTALOADER_SESSION_USER 登入 session 後再試。"
     return ""
+
+
+def is_instagram_access_limited(exc):
+    text = str(exc)
+    return any(marker in text for marker in ACCESS_LIMIT_MARKERS)
 
 
 def extract_shortcode(url):

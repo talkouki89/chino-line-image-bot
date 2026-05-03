@@ -1,3 +1,10 @@
+# 2026.05.04.1
+
+- 修正 Instagram 受限貼文或帳號解析失敗時可能 fallback 抓到登入頁 HTML，導致 Bot 傳出奇怪圖片或雜訊提示的問題。
+- Instagram 遇到 403、需登入、私人貼文、限制帳號、challenge 或 rate limit 類錯誤時，會直接回覆清楚限制說明，不再改用 fallback 下載。
+- 將 Instaloader 取貼文與讀取 sidecar/video URL 的過程完整包住 stdout/stderr，避免 GraphQL retry 訊息露出到執行畫面。
+- README 補上 Instagram 受限內容的處理方式與 `INSTALOADER_SESSION_USER` 使用情境。
+
 # 2026.05.03.2
 
 - 移除已不維護的 Threads 下載入口，`回覆搜th` 已從 README、媒體下載模板、功能列表與回覆下載外掛中移除。
