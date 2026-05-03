@@ -169,6 +169,8 @@ LINE 非官方登入與自動化操作本身就有風控風險，`blocked user c
 - `INSTALOADER_SESSION_USER` 可讓 Instagram 下載使用本機 Instaloader session；需要先用 `instaloader -l 使用者名稱` 建立。
 - `DOUYIN_WTF_API_BASE` 是 TikTok 圖片解析 API，預設使用 `https://douyin.wtf`，也可以改成自己部署的服務。
 
+Instagram 貼文如果來自受限帳號、私人帳號、需要登入或被 Instagram 暫時擋第三方解析，Bot 會直接回覆限制提示，不會再 fallback 抓登入頁 HTML，避免傳出奇怪圖片或解析雜訊。
+
 ### 媒體下載說明
 
 媒體下載已拆成多個獨立外掛，可以在 `功能設定` 中單獨開關：
