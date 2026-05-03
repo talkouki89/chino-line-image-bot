@@ -62,10 +62,7 @@ def download_and_send_media(ctx, url, label="媒體", prefer_direct=False, use_d
         if not files:
             ctx.reply(f"{label}下載失敗，沒有取得可傳送的檔案。")
             return
-        failed = 0
-        for path in files:
-            if not send_file(ctx, path):
-                failed += 1
+        failed = send_files(ctx, files)
         if failed:
             ctx.reply(f"有 {failed} 個{label}檔案傳送失敗。")
     except Exception as exc:
@@ -396,6 +393,35 @@ def unique_existing_files(paths):
     return files
 
 
+def send_files(ctx, files):
+    image_paths = [path for path in files if detect_file_type(path) == "image"]
+    other_paths = [path for path in files if detect_file_type(path) != "image"]
+    failed = 0
+    if image_paths and not send_image_files(ctx, image_paths):
+        failed += len(image_paths)
+    for path in other_paths:
+        if not send_file(ctx, path):
+            failed += 1
+    return failed
+
+
+def send_image_files(ctx, paths):
+    try:
+        sender = getattr(ctx, "send_multiple_images", None)
+        if sender:
+            sender(ctx.to, paths)
+        elif len(paths) > 1 and hasattr(ctx.cl, "uploadMultipleImageToTalk"):
+            ctx.cl.uploadMultipleImageToTalk(ctx.to, paths)
+        else:
+            ctx.cl.sendImage(ctx.to, paths[0])
+        return True
+    except Exception as exc:
+        ctx.log_error(exc)
+        if is_private_e2ee_send_error(ctx, exc):
+            ctx.reply("私訊可能因為 E2EE/Letter Sealing 無法傳送影片，請改到群組或重新建立私訊加密金鑰後再試。")
+    return False
+
+
 def send_file(ctx, path):
     media_type = detect_file_type(path)
     try:
@@ -408,7 +434,16 @@ def send_file(ctx, path):
         ctx.reply(f"不支援的檔案格式：{os.path.basename(path)}")
     except Exception as exc:
         ctx.log_error(exc)
+        if is_private_e2ee_send_error(ctx, exc):
+            ctx.reply("私訊可能因為 E2EE/Letter Sealing 無法傳送影片，請改到群組或重新建立私訊加密金鑰後再試。")
     return False
+
+
+def is_private_e2ee_send_error(ctx, exc):
+    if getattr(ctx.msg, "toType", None) != 0:
+        return False
+    text = str(exc)
+    return "can not send using plain mode" in text or "selfKey should not be None" in text
 
 
 def detect_file_type(path):

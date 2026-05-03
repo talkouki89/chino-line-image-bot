@@ -9,10 +9,12 @@
 ## 主要功能
 
 - LINE 登入、收訊與回覆
-- 圖片反搜：SauceNAO、Ascii2D、TraceMoe、AnimeTrace、Yandex、Iqdb、GGJAV
+- 圖片反搜：SauceNAO、Ascii2D、TraceMoe、AnimeTrace、Yandex、Iqdb、GGJAV，圖搜會在背景執行，避免卡住其他訊息
 - LINE Flex Message / LIFF 搜尋結果模板，支援回覆私訊 E2EE 圖片進行圖搜
+- LIFF 模板傳送失敗時會重新簽發 token，並保留文字 fallback
 - 抽圖功能使用 [Lolicon API](https://docs.api.lolicon.app/#/setu) 取得隨機圖與標籤圖
 - X/Twitter、YouTube、Facebook、Pornhub、Instagram、TikTok 下載相關指令
+- 多張圖片會透過 `uploadMultipleImageToTalk` 成組傳送，減少逐張洗版
 - nHentai、紳士漫畫、禁漫天堂、Pixiv 編號解析模板
 - Freeimage.host 圖床上傳
 - 管理員、使用次數、標籤資料儲存
@@ -138,7 +140,7 @@ CHRLINE 會在 `CHRLINE/` 內產生 `.data`、`.e2eekey`、token 與登入憑證
 
 ### PicImageSearch 說明
 
-最新 PicImageSearch 仍支援同步語法，例如 `from PicImageSearch.sync import SauceNAO`。本專案目前使用同步版本，並做了這些調整：
+最新 PicImageSearch 仍支援同步語法，例如 `from PicImageSearch.sync import SauceNAO`。本專案目前使用同步版本，但圖搜指令會丟到背景 thread 執行，因此搜尋期間不會阻塞主收訊流程。本專案另外做了這些調整：
 
 - `Ascii2D` 的入口清單、SSL 驗證、proxy 改成環境變數；若官方站或代理入口被 Cloudflare 擋住，可用 `ASCII2D_BASE_URLS` 加可用鏡像。
 - 反搜結果增加空結果檢查，避免 `resp.raw[0]` 直接炸掉。
@@ -159,13 +161,15 @@ CHRLINE 會在 `CHRLINE/` 內產生 `.data`、`.e2eekey`、token 與登入憑證
 
 媒體下載已拆成多個獨立外掛，可以在 `功能設定` 中單獨開關：
 
-- `x:URL`：下載 X/Twitter 貼文內的圖片或影片；也支援回覆含 URL 的訊息後輸入 `回覆搜x`。
+- `x:URL`：下載 X/Twitter 貼文內的圖片或影片；也支援回覆含 URL 的訊息後輸入 `回覆搜x`。支援 `x.com`、`twitter.com`、`vxtwitter.com`、`fxtwitter.com`、`fixvx.com`、`fixupx.com` 等網址。
 - `yt:URL` / `回覆搜yt`：使用 yt-dlp 下載 YouTube 或 yt-dlp 支援的影片網址。
 - `fb:URL` / `回覆搜fb`：使用 yt-dlp 下載 Facebook 影片。
 - `ph:URL` / `回覆搜ph`：使用 yt-dlp 下載 Pornhub 影片。
 - `ig:URL` / `回覆搜ig`：Instagram 圖片優先使用 Instaloader，影片或 Instaloader 失敗時再 fallback 到 yt-dlp。
 - `回覆搜th`：回覆 Threads URL 後嘗試下載圖片或影片。
 - `tk:URL`：TikTok 影片走 yt-dlp，圖片會先嘗試 API fallback。
+
+下載結果如果包含多張圖片，Bot 會優先用 `uploadMultipleImageToTalk` 成組傳送；影片仍依 LINE API 限制逐個檔案傳送。私訊遇到 E2EE/Letter Sealing plain mode 或金鑰缺失時，媒體可能無法傳送，Bot 會回覆提示；X/Twitter 下載會補上可直接開啟的媒體網址。
 
 ## 啟動
 
@@ -191,6 +195,8 @@ Launcher 會自動處理：
 - 啟動 `main.py`
 
 第一次啟動會比較久，因為需要下載專案與安裝依賴。安裝成功後會把 `requirements.txt` 的 hash 記錄到 `.venv\.requirements.sha256`，之後只要依賴沒有變更，就會跳過 pip 安裝檢查。若更新版本後 `requirements.txt` 有變更，Launcher 會自動重新安裝依賴。
+
+如果某些 Windows 電腦缺少可用的根憑證，下載 GitHub zip 時可能出現 `CERTIFICATE_VERIFY_FAILED`。Launcher 會先照正常 SSL 驗證下載；確認是憑證鏈問題後，會改用備援下載流程，避免第一次自動安裝直接中斷。
 
 檢查 launcher 是否能找到專案與 Python：
 
@@ -370,6 +376,8 @@ def handle(ctx):
 
 LIFF 專案網址：[chino-liff](https://github.com/talkouki89/chino-liff)。可以直接使用這個 LIFF，也可以自行 clone 後建立自己的 LINE LIFF App，再把程式內的 LIFF ID 換成自己的。
 
+Bot 送 Flex 模板時會先整理成合法的 LINE messages 陣列。若 LIFF token 開太久失效，會重新簽發 token 再送一次；仍失敗時會改傳模板內文字與 `allowliff` 授權連結。
+
 ## 第三方項目
 
 本專案使用或相容下列第三方項目，請同時遵守各自授權與使用規範：
@@ -381,6 +389,7 @@ LIFF 專案網址：[chino-liff](https://github.com/talkouki89/chino-liff)。可
 - [chino-liff](https://github.com/talkouki89/chino-liff)
 - [jmcomic](https://github.com/hect0x7/JMComic-Crawler-Python)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- [douyin.wtf](https://douyin.wtf)
 - [Freeimage.host API](https://freeimage.host/page/api)
 
 ## 許可證與法律資訊

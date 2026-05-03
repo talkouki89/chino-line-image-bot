@@ -2,6 +2,8 @@ import hashlib
 import shutil
 import subprocess
 import sys
+import ssl
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -102,7 +104,7 @@ def download_project(base_dir):
 
     zip_path = base_dir / f"{PROJECT_DIR_NAME}.zip"
     print("找不到 Git，改用 GitHub zip 下載。")
-    urllib.request.urlretrieve(ZIP_URL, zip_path)
+    download_url(ZIP_URL, zip_path)
     with zipfile.ZipFile(zip_path) as archive:
         archive.extractall(base_dir)
     extracted = base_dir / f"{PROJECT_DIR_NAME}-master"
@@ -112,6 +114,21 @@ def download_project(base_dir):
     if not is_project_root(target):
         raise FileNotFoundError("專案下載完成，但找不到 main.py 或 requirements.txt。")
     return target
+
+
+def download_url(url, path):
+    try:
+        urllib.request.urlretrieve(url, path)
+        return
+    except ssl.SSLCertVerificationError:
+        pass
+    except urllib.error.URLError as exc:
+        if not isinstance(getattr(exc, "reason", None), ssl.SSLCertVerificationError):
+            raise
+    print("SSL 憑證驗證失敗，改用不驗證憑證的備援下載。")
+    context = ssl._create_unverified_context()
+    with urllib.request.urlopen(url, context=context) as response, open(path, "wb") as target:
+        shutil.copyfileobj(response, target)
 
 
 def ensure_env_files():

@@ -1,4 +1,6 @@
 import os
+import tempfile
+import threading
 
 from dotenv import load_dotenv
 from PicImageSearch.sync import (
@@ -60,7 +62,7 @@ def handle(ctx):
 
 
 def handle_reply_search(ctx):
-    save_name, engine_label, engine = SEARCH_COMMANDS[ctx.cmd]
+    _, engine_label, engine = SEARCH_COMMANDS[ctx.cmd]
     if not is_engine_enabled(ctx, engine, engine_label):
         return True
 
@@ -72,6 +74,17 @@ def handle_reply_search(ctx):
     if not has_search_quota(ctx):
         return True
 
+    ctx.cl.sendReplyMessage(ctx.msg_id, ctx.to, f"開始執行 {engine_label} 圖搜，完成後會自動回覆。")
+    threading.Thread(
+        target=run_reply_search,
+        args=(ctx, related_message_id, engine),
+        daemon=True,
+    ).start()
+    return True
+
+
+def run_reply_search(ctx, related_message_id, engine):
+    save_name = temp_search_image_path(engine)
     deducted_quota = False
     try:
         download_reply_image(ctx, related_message_id, save_name)
@@ -88,7 +101,6 @@ def handle_reply_search(ctx):
         safe_remove(save_name)
 
     finish_search(ctx, deducted_quota)
-    return True
 
 
 def handle_template_search(ctx):
@@ -104,7 +116,17 @@ def handle_template_search(ctx):
     if not is_engine_enabled(ctx, engine, engine):
         return True
 
-    save_name = SEARCH_COMMANDS[f"回覆搜{template_engine_number(engine)}"][0]
+    ctx.cl.sendReplyMessage(ctx.msg_id, ctx.to, f"開始執行 {engine} 模板搜，完成後會自動回覆。")
+    threading.Thread(
+        target=run_template_search,
+        args=(ctx, related_message_id, engine),
+        daemon=True,
+    ).start()
+    return True
+
+
+def run_template_search(ctx, related_message_id, engine):
+    save_name = temp_search_image_path(engine)
     try:
         download_reply_image(ctx, related_message_id, save_name)
         send_template_result(ctx, engine, save_name)
@@ -114,7 +136,12 @@ def handle_template_search(ctx):
         ctx.cl.relatedMessage(ctx.to, message, ctx.msg_id)
     finally:
         safe_remove(save_name)
-    return True
+
+
+def temp_search_image_path(engine):
+    fd, path = tempfile.mkstemp(prefix=f"chino-search-{engine.lower()}-", suffix=".jpg")
+    os.close(fd)
+    return path
 
 
 def quota_enabled(ctx):

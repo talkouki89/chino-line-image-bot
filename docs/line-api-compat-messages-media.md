@@ -100,6 +100,23 @@ cl.unsendMessage(message_id)
 cl.sendImage(group_mid, r"C:\temp\image.jpg")
 ```
 
+### `uploadMultipleImageToTalk(to, paths)`
+
+一次傳送多張本機圖片。LINE 端會以同一組圖片訊息顯示，適合下載外掛或圖片解析結果一次回多張圖，避免逐張洗版。
+
+```python
+cl.uploadMultipleImageToTalk(
+    group_mid,
+    [
+        r"C:\temp\image-1.jpg",
+        r"C:\temp\image-2.jpg",
+        r"C:\temp\image-3.jpg",
+    ],
+)
+```
+
+`paths` 必須是圖片路徑 list；只有一張圖時可以直接用 `sendImage()`。
+
 ### `sendReplyImage(relatedMessageId, to, path)`
 
 圖片回覆 API。傳入要回覆的訊息 ID、聊天室 MID 與本機圖片路徑，會用圖片訊息回覆指定訊息。

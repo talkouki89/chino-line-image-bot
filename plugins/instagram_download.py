@@ -13,7 +13,7 @@ from plugins.ytdlp_download import (
     is_http_url,
     safe_remove_tree,
     scan_output_files,
-    send_file,
+    send_files,
 )
 
 
@@ -52,10 +52,7 @@ def download_and_send_instagram(ctx, url):
         if not files:
             ctx.reply("Instagram 下載失敗，可能是私人貼文、需要登入或連結已失效。")
             return
-        failed = 0
-        for path in files:
-            if not send_file(ctx, path):
-                failed += 1
+        failed = send_files(ctx, files)
         if failed:
             ctx.reply(f"有 {failed} 個 Instagram 檔案傳送失敗。")
     except Exception as exc:

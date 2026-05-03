@@ -1,9 +1,12 @@
 import json
 import re
+import tempfile
 import threading
 from urllib.parse import urlparse, urlunparse
 
 import requests
+
+from plugins.ytdlp_download import download_urls, safe_remove_tree, scan_output_files, send_image_files
 
 
 FEATURE_KEY = "x_download"
@@ -11,10 +14,14 @@ URL_RE = re.compile(r"https?://[^\s<>\"]+")
 SUPPORTED_HOSTS = {
     "vxtwitter.com",
     "fxtwitter.com",
+    "fixvx.com",
+    "fixupx.com",
     "x.com",
     "twitter.com",
     "www.x.com",
     "www.twitter.com",
+    "www.fixvx.com",
+    "www.fixupx.com",
     "mobile.twitter.com",
 }
 MEDIA_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -74,6 +81,7 @@ def send_x_media_async(ctx, original_url):
 
 
 def send_x_media(ctx, original_url):
+    temp_dir = tempfile.mkdtemp(prefix=f"chino-x-{ctx.sender}-")
     try:
         media_urls = fetch_media_urls(original_url)
     except ValueError:
@@ -88,12 +96,25 @@ def send_x_media(ctx, original_url):
         return
 
     ctx.cl.sendReplyMessage(ctx.msg_id, ctx.to, f"找到 {len(media_urls)} 個 X/Twitter 媒體，開始傳送。")
+    image_urls = [url for url in media_urls if detect_file_type(url) == "image"]
+    other_urls = [url for url in media_urls if detect_file_type(url) != "image"]
     failed = 0
-    for media_url in media_urls:
+    if image_urls:
+        download_urls(image_urls, temp_dir, referer=original_url)
+        image_files = [path for path in scan_output_files(temp_dir) if detect_file_type(path) == "image"]
+        if image_files:
+            if not send_image_files(ctx, image_files):
+                failed += len(image_files)
+                if getattr(ctx.msg, "toType", None) == 0:
+                    ctx.reply("私訊可能因為 E2EE/Letter Sealing 無法傳送影片，請直接開啟：\n" + "\n".join(image_urls))
+        else:
+            failed += len(image_urls)
+    for media_url in other_urls:
         if not send_media_url(ctx, media_url):
             failed += 1
     if failed:
         ctx.reply(f"有 {failed} 個 X/Twitter 媒體傳送失敗。")
+    safe_remove_tree(temp_dir)
 
 
 def convert_url(original_url):
@@ -134,7 +155,16 @@ def send_media_url(ctx, media_url):
         ctx.reply(f"不支援的媒體格式：{media_url}")
     except Exception as exc:
         ctx.log_error(exc)
+        if is_private_e2ee_send_error(ctx, exc):
+            ctx.reply(f"私訊可能因為 E2EE/Letter Sealing 無法傳送影片，請直接開啟：\n{media_url}")
     return False
+
+
+def is_private_e2ee_send_error(ctx, exc):
+    if getattr(ctx.msg, "toType", None) != 0:
+        return False
+    text = str(exc)
+    return "can not send using plain mode" in text or "selfKey should not be None" in text
 
 
 def detect_file_type(url):
