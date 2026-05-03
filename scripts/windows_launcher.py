@@ -1,8 +1,9 @@
 import hashlib
+import os
 import shutil
+import ssl
 import subprocess
 import sys
-import ssl
 import urllib.error
 import urllib.request
 import zipfile
@@ -11,6 +12,7 @@ from pathlib import Path
 
 REPO_URL = "https://github.com/talkouki89/chino-line-image-bot.git"
 ZIP_URL = "https://github.com/talkouki89/chino-line-image-bot/archive/refs/heads/master.zip"
+PYTHON_INSTALLER_URL = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
 PROJECT_DIR_NAME = "chino-line-image-bot"
 
 ROOT = None
@@ -61,18 +63,57 @@ def find_system_python():
         ["py", "-3"],
         ["python"],
         ["python3"],
+        *common_python_paths(),
     ]
     for candidate in candidates:
-        try:
-            subprocess.check_call(
-                [*candidate, "--version"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+        if command_works(candidate):
             return candidate
-        except (OSError, subprocess.CalledProcessError):
+    installer = install_python()
+    candidates = [["py", "-3"], ["python"], *common_python_paths()]
+    for candidate in candidates:
+        if command_works(candidate):
+            return candidate
+    raise FileNotFoundError(
+        "找不到 Python。已下載並啟動安裝程式，請確認安裝完成且勾選 Add python.exe to PATH，"
+        f"再重新執行 Launcher。安裝檔：{installer}"
+    )
+
+
+def command_works(command):
+    try:
+        subprocess.check_call(
+            [*command, "--version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except (OSError, subprocess.CalledProcessError):
+        return False
+
+
+def common_python_paths():
+    roots = [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Python",
+        Path(os.environ.get("ProgramFiles", "")),
+    ]
+    paths = []
+    for root in roots:
+        if not root.exists():
             continue
-    raise FileNotFoundError("找不到 Python。請先安裝 Python 3，並勾選 Add python.exe to PATH。")
+        for path in sorted(root.glob("Python3*/python.exe")):
+            paths.append([str(path)])
+    return paths
+
+
+def install_python():
+    installer = launcher_dir() / "python-3.11.9-amd64.exe"
+    if not installer.exists():
+        print("找不到 Python，開始下載 Python 3.11 安裝程式。")
+        download_url(PYTHON_INSTALLER_URL, installer)
+    print("即將開啟 Python 安裝程式。請勾選 Add python.exe to PATH，安裝完成後回到此視窗。")
+    subprocess.run([str(installer)])
+    input("Python 安裝完成後按 Enter 繼續...")
+    return installer
 
 
 def find_git():
@@ -92,9 +133,9 @@ def download_project(base_dir):
     if target.exists() and is_project_root(target):
         return target
     if target.exists() and any(target.iterdir()):
-        raise FileExistsError(f"{target} 已存在但不是 ChinoBot 專案，請移開後再重新執行。")
+        raise FileExistsError(f"{target} 已存在但不是 ChinoBot 專案，請移走或改用空資料夾。")
 
-    print(f"找不到專案根目錄，將自動下載到：{target}")
+    print(f"找不到專案，開始下載到：{target}")
     target.parent.mkdir(parents=True, exist_ok=True)
 
     git = find_git()
@@ -112,7 +153,7 @@ def download_project(base_dir):
         extracted.rename(target)
     zip_path.unlink(missing_ok=True)
     if not is_project_root(target):
-        raise FileNotFoundError("專案下載完成，但找不到 main.py 或 requirements.txt。")
+        raise FileNotFoundError("專案下載失敗，找不到 main.py 或 requirements.txt。")
     return target
 
 
@@ -134,7 +175,7 @@ def download_url(url, path):
 def ensure_env_files():
     if not (ROOT / ".env").exists() and (ROOT / ".env.example").exists():
         shutil.copyfile(ROOT / ".env.example", ROOT / ".env")
-        print("已建立 .env，請先打開填入 LINE 登入與管理員設定。")
+        print("已建立 .env，請記得填入 LINE 登入與管理員設定。")
     for name in ("ban", "temp", "features"):
         target = ROOT / "json" / f"{name}.json"
         example = ROOT / "json" / f"{name}.example.json"
@@ -167,9 +208,9 @@ def ensure_venv():
     if not PYTHON.exists():
         run([*find_system_python(), "-m", "venv", str(VENV)])
     if not requirements_changed():
-        print("依賴已是最新，跳過安裝檢查。")
+        print("依賴沒有變更，跳過 pip 安裝。")
         return
-    print("第一次啟動或 requirements.txt 有更新，開始安裝依賴。")
+    print("偵測到 requirements.txt 變更或尚未安裝依賴，開始安裝。")
     run([str(PYTHON), "-m", "pip", "install", "-U", "pip"])
     run([str(PYTHON), "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")])
     save_requirements_hash()
@@ -177,7 +218,7 @@ def ensure_venv():
 
 def main():
     setup_paths()
-    print(f"專案位置：{ROOT}")
+    print(f"專案路徑：{ROOT}")
     if "--check" in sys.argv:
         print(f"虛擬環境 Python：{PYTHON}")
         print(f"系統 Python：{' '.join(find_system_python())}")
@@ -194,5 +235,5 @@ if __name__ == "__main__":
     except Exception as exc:
         print("")
         print(f"啟動失敗：{exc}")
-        input("按 Enter 關閉視窗...")
+        input("按 Enter 關閉...")
         raise

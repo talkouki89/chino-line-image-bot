@@ -25,11 +25,6 @@ COMMANDS = {
         "hosts": ("instagram.com",),
         "send": lambda ctx, url: send_instagram_async(ctx, url),
     },
-    "回覆搜th": {
-        "label": "Threads 媒體",
-        "hosts": ("threads.net", "threads.com"),
-        "send": lambda ctx, url: send_ytdlp_media_async(ctx, url, label="Threads 媒體", prefer_direct=True),
-    },
 }
 
 
@@ -60,7 +55,7 @@ def handle_reply_download(ctx, config):
         ctx.log_error(exc)
         ctx.reply(f"{ctx.cmd} 查詢失敗。")
         return True
-    ctx.reply("找不到回覆的訊息。")
+    ctx.reply("找不到原始回覆訊息。")
     return True
 
 

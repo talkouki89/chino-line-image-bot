@@ -1,3 +1,14 @@
+# 2026.05.03.2
+
+- 移除已不維護的 Threads 下載入口，`回覆搜th` 已從 README、媒體下載模板、功能列表與回覆下載外掛中移除。
+- 重新整理 `圖搜說明` 第二頁的媒體下載模板，改成 X/Twitter、影片平台、社群圖片/影片三段，並補上多圖會合併傳送的提示。
+- X/Twitter 下載支援一次輸入多個網址，例如 `x:URL URL URL`，解析到多張圖片時會使用 `uploadMultipleImageToTalk` 成組傳送。
+- Instagram 下載遇到 GraphQL 403、登入限制或第三方解析被擋時，會壓掉 instaloader 的雜訊輸出，改回覆可讀提示並嘗試 fallback 下載流程。
+- Windows Launcher 找不到 Python 時會自動下載 Python 3.11 安裝程式並開啟，安裝完成後可回到 Launcher 繼續建立 `.venv` 與啟動 Bot。
+- 新增 `BOT_TIMEZONE` 設定，預設 `Asia/Taipei`，支援 `UTC+8` 這類格式；錯誤紀錄、群組建立時間與標註時間會使用該時區。
+- 新增 `AUTO_FRIEND_ADD_CONTACT` 與 `SEND_STARTUP_NOTIFY` 風控開關，預設降低主動加好友與啟動通知，減少帳號被限制的機率。
+- README 補上 Python 自動安裝、帳號風控建議、媒體下載整理與新時區設定說明；`.env.example` 補齊相關設定。
+
 # 2026.05.03.1
 
 - 修正 `exec:` 管理指令只執行不回傳的問題，現在會回覆 stdout、stderr 或單行運算結果，輸出過長時會自動截斷。

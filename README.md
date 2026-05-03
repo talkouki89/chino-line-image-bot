@@ -40,7 +40,7 @@
 │   ├── nhentai.py       # nHentai 編號解析與 Popular Now
 │   ├── pixiv_lookup.py  # p: Pixiv 解析
 │   ├── pornhub_download.py # ph: Pornhub 影片下載
-│   ├── reply_media_download.py # 回覆搜yt/fb/ph/ig/th
+│   ├── reply_media_download.py # 回覆搜yt/fb/ph/ig
 │   ├── runtime_tools.py # ren 運行時間模板
 │   ├── tiktok_download.py # tk: TikTok 圖片 / 影片下載
 │   ├── wnacg.py         # w: 紳士漫畫解析
@@ -114,6 +114,9 @@ Creator=
 
 # [選填] 後台通知聊天室/群組 ID。登入、重啟、錯誤通知會發到這裡。
 Dio_GID=
+
+# [選填] Bot 顯示時間使用的時區。預設台灣時間，可填 Asia/Taipei、UTC+8、UTC-5。
+BOT_TIMEZONE=Asia/Taipei
 ```
 
 ### Runtime JSON
@@ -138,6 +141,15 @@ Copy-Item json\features.example.json json\features.json
 
 CHRLINE 會在 `CHRLINE/` 內產生 `.data`、`.e2eekey`、token 與登入憑證類資料。這些資料夾通常是隱藏檔案，需要開啟顯示隱藏檔才看得到。請妥善保管，不要外流，也不要在提供 API、壓縮專案或分享檔案時順手把這些憑證資料一起給出去。
 
+### 帳號風控建議
+
+LINE 非官方登入與自動化操作本身就有風控風險，`blocked user code:35` 通常代表對方封鎖、不可送訊息，或帳號被 LINE 限制。程式已把容易觸發風控的主動行為做成開關：
+
+- `AUTO_FRIEND_ADD_CONTACT=false`：預設不在加好友事件主動加對方好友。
+- `SEND_STARTUP_NOTIFY=false`：預設不在每次啟動時主動傳背景通知。
+
+若帳號容易被限制，建議維持以上預設、降低群發頻率、避免短時間大量加好友或私訊，並使用專門測試帳號運行。
+
 ### PicImageSearch 說明
 
 最新 PicImageSearch 仍支援同步語法，例如 `from PicImageSearch.sync import SauceNAO`。本專案目前使用同步版本，但圖搜指令會丟到背景 thread 執行，因此搜尋期間不會阻塞主收訊流程。本專案另外做了這些調整：
@@ -161,13 +173,9 @@ CHRLINE 會在 `CHRLINE/` 內產生 `.data`、`.e2eekey`、token 與登入憑證
 
 媒體下載已拆成多個獨立外掛，可以在 `功能設定` 中單獨開關：
 
-- `x:URL`：下載 X/Twitter 貼文內的圖片或影片；也支援回覆含 URL 的訊息後輸入 `回覆搜x`。支援 `x.com`、`twitter.com`、`vxtwitter.com`、`fxtwitter.com`、`fixvx.com`、`fixupx.com` 等網址。
-- `yt:URL` / `回覆搜yt`：使用 yt-dlp 下載 YouTube 或 yt-dlp 支援的影片網址。
-- `fb:URL` / `回覆搜fb`：使用 yt-dlp 下載 Facebook 影片。
-- `ph:URL` / `回覆搜ph`：使用 yt-dlp 下載 Pornhub 影片。
-- `ig:URL` / `回覆搜ig`：Instagram 圖片優先使用 Instaloader，影片或 Instaloader 失敗時再 fallback 到 yt-dlp。
-- `回覆搜th`：回覆 Threads URL 後嘗試下載圖片或影片。
-- `tk:URL`：TikTok 影片走 yt-dlp，圖片會先嘗試 API fallback。
+- X / Twitter：`x:URL` 可下載單一貼文圖片或影片，也可以一次貼多個 X 網址；`回覆搜x` 可回覆含 URL 的訊息後下載。支援 `x.com`、`twitter.com`、`vxtwitter.com`、`fxtwitter.com`、`fixvx.com`、`fixupx.com` 等網址。
+- 影片平台：`yt:URL` / `回覆搜yt` 使用 yt-dlp 下載 YouTube 或 yt-dlp 支援的影片網址；`fb:URL` / `回覆搜fb` 下載 Facebook 影片；`ph:URL` / `回覆搜ph` 下載 Pornhub 影片。
+- 社群圖片 / 影片：`ig:URL` / `回覆搜ig` 下載 Instagram 媒體；`tk:URL` 下載 TikTok 圖片或影片。
 
 下載結果如果包含多張圖片，Bot 會優先用 `uploadMultipleImageToTalk` 成組傳送；影片仍依 LINE API 限制逐個檔案傳送。私訊遇到 E2EE/Letter Sealing plain mode 或金鑰缺失時，媒體可能無法傳送，Bot 會回覆提示；X/Twitter 下載會補上可直接開啟的媒體網址。
 
@@ -197,6 +205,8 @@ Launcher 會自動處理：
 第一次啟動會比較久，因為需要下載專案與安裝依賴。安裝成功後會把 `requirements.txt` 的 hash 記錄到 `.venv\.requirements.sha256`，之後只要依賴沒有變更，就會跳過 pip 安裝檢查。若更新版本後 `requirements.txt` 有變更，Launcher 會自動重新安裝依賴。
 
 如果某些 Windows 電腦缺少可用的根憑證，下載 GitHub zip 時可能出現 `CERTIFICATE_VERIFY_FAILED`。Launcher 會先照正常 SSL 驗證下載；確認是憑證鏈問題後，會改用備援下載流程，避免第一次自動安裝直接中斷。
+
+如果電腦找不到 Python，Launcher 會自動下載 Python 3.11 Windows 安裝程式並開啟安裝視窗。安裝時請勾選 `Add python.exe to PATH`，完成後回到 Launcher 視窗按 Enter，Launcher 會繼續建立 `.venv` 與啟動 Bot。
 
 檢查 launcher 是否能找到專案與 Python：
 
@@ -276,7 +286,7 @@ def handle(ctx):
    - `plugins/freeimage_upload.py`：`#圖片上傳`
    - `plugins/image_draw_template.py`：抽圖模板、隨機圖、R18 圖、tag 色圖
    - `plugins/x_download.py`：`x:URL` / `回覆搜x`
-   - `plugins/reply_media_download.py`：`回覆搜yt` / `回覆搜fb` / `回覆搜ph` / `回覆搜ig` / `回覆搜th`
+   - `plugins/reply_media_download.py`：`回覆搜yt` / `回覆搜fb` / `回覆搜ph` / `回覆搜ig`
    - `plugins/ytdlp_download.py`：`yt:URL`
    - `plugins/facebook_download.py`：`fb:URL`
    - `plugins/pornhub_download.py`：`ph:URL`
@@ -336,7 +346,6 @@ def handle(ctx):
 - `回覆搜ph`：回覆 Pornhub URL 後下載。
 - `ig:URL`：下載 Instagram 圖片或影片。
 - `回覆搜ig`：回覆 Instagram URL 後下載。
-- `回覆搜th`：回覆 Threads URL 後下載。
 - `tk:URL`：下載 TikTok 圖片或影片。
 - `speedtest`：管理員執行測速並回傳結果圖片。
 - `mid:MID`：管理員查詢指定 MID 的好友資料。

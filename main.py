@@ -102,6 +102,33 @@ def env_int(name, default):
         return int(default)
 
 
+def parse_timezone(name):
+    value = str(name or "Asia/Taipei").strip()
+    try:
+        return pytz.timezone(value)
+    except pytz.UnknownTimeZoneError:
+        pass
+    match = re.fullmatch(r"UTC([+-])(\d{1,2})(?::?(\d{2}))?", value.upper())
+    if match:
+        sign = 1 if match.group(1) == "+" else -1
+        hours = int(match.group(2))
+        minutes = int(match.group(3) or 0)
+        return pytz.FixedOffset(sign * (hours * 60 + minutes))
+    return pytz.timezone("Asia/Taipei")
+
+
+def bot_timezone():
+    return parse_timezone(BOT_TIMEZONE_NAME)
+
+
+def bot_now():
+    return datetime.now(bot_timezone())
+
+
+def format_bot_timestamp(timestamp_ms):
+    return datetime.fromtimestamp(int(timestamp_ms) / 1000, bot_timezone()).strftime("%Y-%m-%d %H:%M:%S")
+
+
 # Environment and bot configuration.
 load_dotenv(os.path.join(ROOT_DIR, '.env'))
 account = os.getenv('LINE_ACCOUNT')
@@ -116,6 +143,9 @@ botcreator = os.getenv('Creator')
 background = os.getenv('Dio_GID')
 GROUP_MIN_MEMBER_CHECK = env_bool("GROUP_MIN_MEMBER_CHECK", True)
 GROUP_MIN_MEMBERS = env_int("GROUP_MIN_MEMBERS", 10)
+BOT_TIMEZONE_NAME = os.getenv("BOT_TIMEZONE", "Asia/Taipei")
+AUTO_FRIEND_ADD_CONTACT = env_bool("AUTO_FRIEND_ADD_CONTACT", False)
+SEND_STARTUP_NOTIFY = env_bool("SEND_STARTUP_NOTIFY", False)
 
 # LINE login happens here. Auth token is preferred, then account/password, then
 # CHRLINE's SQR login when both are missing.
@@ -182,7 +212,7 @@ def color():
 def logError(text):
     """Log an exception/message to LINE logger and errorLog.txt."""
     cl.log("[ 錯誤 ] " + str(text))
-    time_ = datetime.now()
+    time_ = bot_now()
     with open(ERROR_LOG, "a", encoding="utf-8") as error:
         error.write("\n[%s] %s" % (str(time_), text))    
 
@@ -615,7 +645,7 @@ def build_group_report(chat_id):
             creator_name = creator
     created_time = get_object_value(group, "createdTime", default=0) or 0
     try:
-        created_text = datetime.fromtimestamp(int(created_time) / 1000, pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")
+        created_text = format_bot_timestamp(created_time)
     except Exception:
         created_text = "未知"
 
@@ -918,8 +948,9 @@ def help1():  # 一般功能
 print(color()+"登入者名稱:"+clProfile.displayName+"\n登入者MID:"+clMID)
 print("===== 智乃圖搜2.0已登入完成 =====")
 try:
-    safe_send_background("【自動發送】\n智乃圖搜2.0登入成功\n➜登錄時間:{time}".format(
-        time=(time.time() - mulai)))
+    if SEND_STARTUP_NOTIFY:
+        safe_send_background("【自動發送】\n智乃圖搜2.0登入成功\n➜登錄時間:{time}".format(
+            time=(time.time() - mulai)))
 except Exception as exc:
     logError(f"startup notify failed: {exc}")
 
@@ -934,11 +965,15 @@ def PicBot(op):
         if op.type == 5 and is_feature_enabled("auto_friend"):
             user_mid = get_object_value(op, "param1", default=None)
             if user_mid and user_mid != clMID:
+                if AUTO_FRIEND_ADD_CONTACT:
+                    try:
+                        cl.findAndAddContactsByMid(user_mid)
+                    except Exception as exc:
+                        logError(f"auto friend add failed: {exc}")
                 try:
-                    cl.findAndAddContactsByMid(user_mid)
+                    cl.sendMessage(user_mid, build_auto_friend_message())
                 except Exception as exc:
-                    logError(f"auto friend add failed: {exc}")
-                cl.sendMessage(user_mid, build_auto_friend_message())
+                    logError(f"auto friend greeting failed: {exc}")
                 return
 
         if op.type == 13 or op.type == 124:
@@ -1014,7 +1049,7 @@ def PicBot(op):
                     who_mark_me[to][str(tag_num)] = {
                         "sender": sender,
                         "msgid": msg_id,
-                        "tagtime": datetime.now(pytz.timezone("Asia/Taipei")).strftime('%m/%d %H:%M:%S')
+                        "tagtime": bot_now().strftime('%m/%d %H:%M:%S')
                     }
                     with open(tag_file, "w", encoding="utf-8") as f:
                         json.dump(who_mark_me, f, sort_keys=True, indent=4, ensure_ascii=False)                                                  

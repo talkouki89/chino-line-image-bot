@@ -1,3 +1,5 @@
+import contextlib
+import io
 import os
 import re
 import tempfile
@@ -5,6 +7,7 @@ import threading
 
 import instaloader
 from instaloader import Post
+from instaloader.exceptions import ConnectionException, LoginRequiredException, QueryReturnedForbiddenException
 
 from plugins.ytdlp_download import (
     download_media,
@@ -27,10 +30,10 @@ def handle(ctx):
         return False
     url = extract_url(ctx.text.split(":", 1)[1] if ":" in ctx.text else "")
     if not url:
-        ctx.reply("請輸入 Instagram 連結。\n範例：ig:https://www.instagram.com/p/xxxxx/")
+        ctx.reply("請輸入 Instagram 網址。\n範例：ig:https://www.instagram.com/p/xxxxx/")
         return True
     if not is_http_url(url) or "instagram.com" not in url.lower():
-        ctx.reply("Instagram 連結格式不正確。")
+        ctx.reply("Instagram 網址格式不正確。")
         return True
     send_instagram_async(ctx, url)
     return True
@@ -48,41 +51,51 @@ def download_and_send_instagram(ctx, url):
     temp_dir = tempfile.mkdtemp(prefix=f"chino-ig-{ctx.sender}-")
     ctx.cl.sendReplyMessage(ctx.msg_id, ctx.to, "開始下載 Instagram 媒體，完成後會自動傳送。")
     try:
-        files = download_instagram_media(url, temp_dir)
+        files, warning = download_instagram_media(url, temp_dir)
+        if warning:
+            ctx.reply(warning)
         if not files:
-            ctx.reply("Instagram 下載失敗，可能是私人貼文、需要登入或連結已失效。")
+            ctx.reply("Instagram 下載失敗，可能是私人貼文、帳號限制、需要登入，或 Instagram 暫時阻擋解析。")
             return
         failed = send_files(ctx, files)
         if failed:
             ctx.reply(f"有 {failed} 個 Instagram 檔案傳送失敗。")
     except Exception as exc:
         ctx.log_error(exc)
-        ctx.reply("Instagram 下載失敗，請確認連結是否公開或稍後再試。")
+        ctx.reply("Instagram 下載失敗，請確認網址是否公開可看，或稍後再試。")
     finally:
         safe_remove_tree(temp_dir)
 
 
 def download_instagram_media(url, output_dir):
     shortcode = extract_shortcode(url)
+    instaloader_warning = ""
     if shortcode:
         try:
             download_with_instaloader(shortcode, output_dir)
             files = [path for path in scan_output_files(output_dir) if is_media_file(path)]
             if files:
-                return files
-        except Exception:
-            pass
-    return download_media(url, output_dir, prefer_direct=True)
+                return files, ""
+        except (LoginRequiredException, QueryReturnedForbiddenException, ConnectionException) as exc:
+            instaloader_warning = instagram_blocked_message(exc)
+        except Exception as exc:
+            instaloader_warning = instagram_blocked_message(exc)
+    files = download_media(url, output_dir, prefer_direct=True)
+    return files, instaloader_warning if not files else ""
 
 
 def download_with_instaloader(shortcode, output_dir):
     loader = instaloader.Instaloader(
         quiet=True,
+        download_comments=False,
+        save_metadata=False,
+        compress_json=False,
     )
     session_user = os.getenv("INSTALOADER_SESSION_USER", "").strip()
     if session_user:
         loader.load_session_from_file(session_user)
-    post = Post.from_shortcode(loader.context, shortcode)
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        post = Post.from_shortcode(loader.context, shortcode)
     urls = instagram_post_media_urls(post)
     download_urls(urls, output_dir, referer=f"https://www.instagram.com/p/{shortcode}/")
 
@@ -99,6 +112,13 @@ def instagram_post_media_urls(post):
     if post.is_video and post.video_url:
         return [post.video_url]
     return [post.url] if post.url else []
+
+
+def instagram_blocked_message(exc):
+    text = str(exc)
+    if "403" in text or "Forbidden" in text:
+        return "Instagram 回傳 403，通常代表該貼文或帳號需要登入、被限制、或暫時阻擋第三方解析。可以先設定 INSTALOADER_SESSION_USER 登入 session 再試。"
+    return ""
 
 
 def extract_shortcode(url):

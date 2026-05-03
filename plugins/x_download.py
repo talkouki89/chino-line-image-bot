@@ -36,85 +36,107 @@ def handle(ctx):
 
 
 def handle_x_url(ctx):
-    parts = ctx.text.split(":", 1)
-    url = extract_url(parts[1] if len(parts) == 2 else "")
-    if not url:
+    value = ctx.text.split(":", 1)[1] if ":" in ctx.text else ""
+    urls = extract_supported_urls(value)
+    if not urls:
         ctx.reply("請輸入 X/Twitter 網址。\n範例：x:https://x.com/user/status/123")
         return True
-    send_x_media_async(ctx, url)
+    send_x_media_async(ctx, urls)
     return True
 
 
 def handle_reply_x(ctx):
     related_message_id = getattr(ctx.msg, "relatedMessageId", None)
     if not related_message_id:
-        ctx.reply("請回覆含有 X/Twitter 網址的訊息，再輸入 回覆搜x。")
+        ctx.reply("請回覆含有 X/Twitter 網址的訊息，再輸入回覆搜x。")
         return True
 
     try:
         for recent in ctx.cl.getRecentMessagesV2(ctx.to, 1000):
-            if recent.id != related_message_id:
+            if str(getattr(recent, "id", "")) != str(related_message_id):
                 continue
-            url = extract_supported_url(getattr(recent, "text", "") or "")
-            if not url:
-                url = extract_supported_url(json.dumps(str(recent), ensure_ascii=False))
-            if not url:
+            urls = extract_supported_urls(getattr(recent, "text", "") or "")
+            if not urls:
+                urls = extract_supported_urls(json.dumps(str(recent), ensure_ascii=False))
+            if not urls:
                 ctx.reply("找不到 X/Twitter 網址。")
                 return True
-            send_x_media_async(ctx, url)
+            send_x_media_async(ctx, urls)
             return True
     except Exception as exc:
         ctx.log_error(exc)
         ctx.reply("回覆搜x 查詢失敗。")
         return True
 
-    ctx.reply("找不到回覆的訊息。")
+    ctx.reply("找不到原始回覆訊息。")
     return True
 
 
-def send_x_media_async(ctx, original_url):
+def send_x_media_async(ctx, original_urls):
     threading.Thread(
         target=send_x_media,
-        args=(ctx, original_url),
+        args=(ctx, list(dict.fromkeys(original_urls))),
         daemon=True,
     ).start()
 
 
-def send_x_media(ctx, original_url):
+def send_x_media(ctx, original_urls):
     temp_dir = tempfile.mkdtemp(prefix=f"chino-x-{ctx.sender}-")
     try:
-        media_urls = fetch_media_urls(original_url)
-    except ValueError:
-        ctx.reply("這不是支援的 X/Twitter 網址。\n支援 x.com、twitter.com、vxtwitter.com、fxtwitter.com。")
-        return
-    except Exception as exc:
-        ctx.log_error(exc)
-        ctx.reply("X/Twitter 解析失敗，請確認網址是否正確或稍後再試。")
-        return
-    if not media_urls:
-        ctx.reply("沒有找到可下載的 X/Twitter 圖片或影片。")
-        return
+        image_urls = []
+        video_urls = []
+        failed_sources = []
+        for original_url in original_urls:
+            try:
+                media_urls = fetch_media_urls(original_url)
+            except ValueError:
+                failed_sources.append(original_url)
+                continue
+            except Exception as exc:
+                ctx.log_error(exc)
+                failed_sources.append(original_url)
+                continue
+            for media_url in media_urls:
+                media_type = detect_file_type(media_url)
+                if media_type == "image":
+                    image_urls.append(media_url)
+                elif media_type == "video":
+                    video_urls.append(media_url)
 
-    ctx.cl.sendReplyMessage(ctx.msg_id, ctx.to, f"找到 {len(media_urls)} 個 X/Twitter 媒體，開始傳送。")
-    image_urls = [url for url in media_urls if detect_file_type(url) == "image"]
-    other_urls = [url for url in media_urls if detect_file_type(url) != "image"]
-    failed = 0
-    if image_urls:
-        download_urls(image_urls, temp_dir, referer=original_url)
-        image_files = [path for path in scan_output_files(temp_dir) if detect_file_type(path) == "image"]
-        if image_files:
-            if not send_image_files(ctx, image_files):
-                failed += len(image_files)
-                if getattr(ctx.msg, "toType", None) == 0:
-                    ctx.reply("私訊可能因為 E2EE/Letter Sealing 無法傳送影片，請直接開啟：\n" + "\n".join(image_urls))
-        else:
-            failed += len(image_urls)
-    for media_url in other_urls:
-        if not send_media_url(ctx, media_url):
-            failed += 1
-    if failed:
-        ctx.reply(f"有 {failed} 個 X/Twitter 媒體傳送失敗。")
-    safe_remove_tree(temp_dir)
+        image_urls = list(dict.fromkeys(image_urls))
+        video_urls = list(dict.fromkeys(video_urls))
+        total = len(image_urls) + len(video_urls)
+        if not total:
+            ctx.reply("沒有找到可傳送的 X/Twitter 圖片或影片。")
+            return
+
+        ctx.cl.sendReplyMessage(
+            ctx.msg_id,
+            ctx.to,
+            f"找到 {total} 個 X/Twitter 媒體，開始傳送。",
+        )
+        failed = 0
+        if image_urls:
+            download_urls(image_urls, temp_dir, referer=original_urls[0])
+            image_files = [path for path in scan_output_files(temp_dir) if detect_file_type(path) == "image"]
+            if image_files:
+                if not send_image_files(ctx, image_files):
+                    failed += len(image_files)
+                    if getattr(ctx.msg, "toType", None) == 0:
+                        ctx.reply("私訊可能因為 E2EE/Letter Sealing 無法傳送影片，請直接開啟：\n" + "\n".join(image_urls))
+            else:
+                failed += len(image_urls)
+
+        for media_url in video_urls:
+            if not send_media_url(ctx, media_url):
+                failed += 1
+
+        if failed_sources:
+            ctx.reply("有部分 X/Twitter 網址解析失敗：\n" + "\n".join(failed_sources[:5]))
+        if failed:
+            ctx.reply(f"有 {failed} 個 X/Twitter 媒體傳送失敗。")
+    finally:
+        safe_remove_tree(temp_dir)
 
 
 def convert_url(original_url):
@@ -168,7 +190,7 @@ def is_private_e2ee_send_error(ctx, exc):
 
 
 def detect_file_type(url):
-    path = urlparse(url).path.lower()
+    path = urlparse(str(url)).path.lower()
     if path.endswith(".mp4"):
         return "video"
     if any(path.endswith(ext) for ext in MEDIA_IMAGE_EXTENSIONS):
@@ -177,15 +199,21 @@ def detect_file_type(url):
 
 
 def extract_url(value):
-    match = URL_RE.search(str(value or ""))
-    if not match:
-        return ""
-    return match.group(0).rstrip("。．，、；：！？.,;:!?)]}>\"'")
+    urls = extract_urls(value)
+    return urls[0] if urls else ""
+
+
+def extract_urls(value):
+    urls = []
+    for match in URL_RE.finditer(str(value or "")):
+        urls.append(match.group(0).rstrip("，。！？、；：,.!?)]}>\"'"))
+    return urls
 
 
 def extract_supported_url(value):
-    for match in URL_RE.finditer(str(value or "")):
-        url = match.group(0).rstrip("。．，、；：！？.,;:!?)]}>\"'")
-        if is_supported_url(url):
-            return url
-    return ""
+    urls = extract_supported_urls(value)
+    return urls[0] if urls else ""
+
+
+def extract_supported_urls(value):
+    return [url for url in extract_urls(value) if is_supported_url(url)]
