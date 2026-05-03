@@ -21,6 +21,8 @@ from plugins.core.features import (
 from plugins.core.help_template import GITHUB_URL, build_help_flex, build_picsearch_api_version_check_flex, build_settings_flex, build_status_flex, build_version_check_flex
 from dotenv import load_dotenv
 from datetime import datetime
+import contextlib
+import io
 import threading
 import time
 import random
@@ -154,6 +156,10 @@ DEFAULT_AUTO_FRIEND_MESSAGE = (
 BOT_DISPLAY_NAME = os.getenv("BOT_DISPLAY_NAME", DEFAULT_BOT_DISPLAY_NAME)
 BOT_STATUS_MESSAGE = os.getenv("BOT_STATUS_MESSAGE", DEFAULT_BOT_STATUS_MESSAGE).replace("\\n", "\n")
 AUTO_FRIEND_MESSAGE = os.getenv("AUTO_FRIEND_MESSAGE", DEFAULT_AUTO_FRIEND_MESSAGE).replace("\\n", "\n")
+AUTO_FRIEND_MESSAGE = AUTO_FRIEND_MESSAGE.replace(
+    "私訊可能因為 E2EE/Letter Sealing 無法下載圖片",
+    "私訊可能因為 E2EE/Letter Sealing 無法傳送影片",
+)
 
 try:
     cl.updateProfileAttribute(2, BOT_DISPLAY_NAME)
@@ -225,14 +231,15 @@ def restartBot():
 
 def sendTemplate(to, data):
     """Send a LIFF message through the configured LIFF id."""
+    messages = normalize_liff_messages(data)
     try:
-        result = cl.sendLiff(to, data, liffId=LIFF_ID)
+        result = cl.sendLiff(to, messages, liffId=LIFF_ID)
     except Exception as exc:
         result = exc
     if is_liff_error(result):
-        alt_text = template_alt_text(data)
+        alt_text = template_alt_text(messages)
         logError(f"LIFF template send failed: {result}")
-        fallback = template_fallback_text(data)
+        fallback = template_fallback_text(messages)
         lines = [fallback or alt_text, LIFF_ALLOW_MESSAGE]
         cl.sendMessage(to, "\n\n".join(line for line in lines if line))
     return result
@@ -255,6 +262,12 @@ def is_liff_error(result):
         return False
     lowered = normalized.lower()
     return any(token in lowered for token in ("error", "invalid", "failed", "message", "details"))
+
+
+def normalize_liff_messages(data):
+    """Ensure CHRLINE sends an array of LINE message objects to LIFF share."""
+    messages = data if isinstance(data, list) else [data]
+    return [message for message in messages if isinstance(message, dict) and message.get("type")]
 
 
 def template_alt_text(data):
@@ -305,6 +318,45 @@ def extract_flex_text(node):
 def build_auto_friend_message():
     """Message sent when a user adds the bot as a friend."""
     return AUTO_FRIEND_MESSAGE
+
+
+def send_multiple_images(to, paths):
+    """Send several local image files as one grouped LINE image batch."""
+    image_paths = [path for path in paths if path]
+    if not image_paths:
+        return None
+    if len(image_paths) == 1:
+        return cl.sendImage(to, image_paths[0])
+    return cl.uploadMultipleImageToTalk(to, image_paths)
+
+
+def run_exec_code(code, exec_scope):
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        try:
+            result = eval(code, globals(), exec_scope)
+            exec_scope["_"] = result
+        except SyntaxError:
+            exec(code, globals(), exec_scope)
+            result = exec_scope.get("result", exec_scope.get("_"))
+    parts = []
+    out = stdout.getvalue().strip()
+    err = stderr.getvalue().strip()
+    if out:
+        parts.append(out)
+    if err:
+        parts.append(f"[stderr]\n{err}")
+    if result is not None:
+        parts.append(repr(result))
+    return trim_reply("\n".join(parts) or "執行完成，沒有輸出。")
+
+
+def trim_reply(text, limit=4500):
+    value = str(text)
+    if len(value) <= limit:
+        return value
+    return value[:limit] + "\n...（輸出過長，已截斷）"
 
 def Runtime(secs):
     """Format process uptime for the ren command."""
@@ -844,6 +896,7 @@ def build_plugin_context(op, msg, text, cmd, to, sender, receiver, msg_id):
         reply=reply,
         send_template=sendTemplate,
         send_flex=sendFlex,
+        send_multiple_images=send_multiple_images,
         backup=backupData,
         log_error=logError,
         feature_flags=feature_flags,
@@ -1077,7 +1130,8 @@ def PicBot(op):
                         "ban": ban,
                         "datadir": datadir,
                     }
-                    exec(code, globals(), exec_scope)
+                    output = run_exec_code(code, exec_scope)
+                    cl.relatedMessage(to, output, op.message.id)
                 except Exception as exc:
                     logError(exc)
                     cl.relatedMessage(to, str(exc), op.message.id)

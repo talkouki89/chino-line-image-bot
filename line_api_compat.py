@@ -205,6 +205,13 @@ def _wrap(value: Any, kind: Optional[str] = None) -> Any:
     return value
 
 
+def _is_liff_share_error(result: Any) -> bool:
+    if not isinstance(result, str):
+        return False
+    text = result.lower()
+    return "invalid" in text or "unauthorized" in text or "token" in text
+
+
 class AttrProxy:
     def __init__(self, data: Any, kind: Optional[str] = None):
         object.__setattr__(self, "_data", data)
@@ -485,7 +492,11 @@ class LINE:
         return base64.b64encode(json.dumps({"message": message}).encode("utf-8")).decode("utf-8")
 
     def sendLiff(self, to, messages, liffId="2009929108-vOiudUbo"):
-        return self._client.sendLiff(to, messages, liffId=liffId)
+        payload = messages if isinstance(messages, list) else [messages]
+        result = self._client.sendLiff(to, payload, liffId=liffId)
+        if _is_liff_share_error(result):
+            result = self._client.sendLiff(to, payload, forceIssue=True, liffId=liffId)
+        return result
 
     def sendContact(self, to: str, mid: str, displayName: Optional[str] = None):
         return self._client.sendContact(to, mid, displayName=displayName)
@@ -495,6 +506,9 @@ class LINE:
 
     def sendVideo(self, to: str, path: str):
         return self._client.sendVideo(to, path)
+
+    def uploadMultipleImageToTalk(self, to: str, paths: list[str]):
+        return self._client.uploadMultipleImageToTalk(paths, to)
 
     def unsendMessage(self, messageId: str):
         return self._client.unsendMessage(messageId)
