@@ -146,6 +146,11 @@ GROUP_MIN_MEMBERS = env_int("GROUP_MIN_MEMBERS", 10)
 BOT_TIMEZONE_NAME = os.getenv("BOT_TIMEZONE", "Asia/Taipei")
 AUTO_FRIEND_ADD_CONTACT = env_bool("AUTO_FRIEND_ADD_CONTACT", False)
 SEND_STARTUP_NOTIFY = env_bool("SEND_STARTUP_NOTIFY", False)
+AUTO_UPDATE_PROFILE_MEDIA = env_bool("AUTO_UPDATE_PROFILE_MEDIA", True)
+AUTO_UPDATE_PROFILE_PHOTO = env_bool("AUTO_UPDATE_PROFILE_PHOTO", True)
+AUTO_UPDATE_PROFILE_COVER = env_bool("AUTO_UPDATE_PROFILE_COVER", True)
+PROFILE_PHOTO_PATH = os.getenv("PROFILE_PHOTO_PATH", "pic/Profile photo.png")
+PROFILE_COVER_PATH = os.getenv("PROFILE_COVER_PATH", "pic/cover photo.png")
 
 # LINE login happens here. Auth token is preferred, then account/password, then
 # CHRLINE's SQR login when both are missing.
@@ -191,9 +196,40 @@ AUTO_FRIEND_MESSAGE = AUTO_FRIEND_MESSAGE.replace(
     "私訊可能因為 E2EE/Letter Sealing 無法傳送影片",
 )
 
+
+def resolve_local_path(path):
+    if not path:
+        return ""
+    if os.path.isabs(path):
+        return path
+    return os.path.join(ROOT_DIR, path)
+
+
+def apply_default_profile_media():
+    if not AUTO_UPDATE_PROFILE_MEDIA:
+        return
+    if AUTO_UPDATE_PROFILE_PHOTO:
+        photo = resolve_local_path(PROFILE_PHOTO_PATH)
+        if photo and os.path.exists(photo):
+            try:
+                cl.updateProfileImage(photo)
+                print(f"Profile photo updated: {photo}")
+            except Exception as exc:
+                print(f"Profile photo update failed: {exc}")
+    if AUTO_UPDATE_PROFILE_COVER:
+        cover = resolve_local_path(PROFILE_COVER_PATH)
+        if cover and os.path.exists(cover):
+            try:
+                cl.updateProfileCover(cover)
+                print(f"Profile cover updated: {cover}")
+            except Exception as exc:
+                print(f"Profile cover update failed: {exc}")
+
+
 try:
     cl.updateProfileAttribute(2, BOT_DISPLAY_NAME)
     cl.updateProfileAttribute(16, BOT_STATUS_MESSAGE)
+    apply_default_profile_media()
 except Exception as exc:
     print(f"Profile update failed: {exc}")
 

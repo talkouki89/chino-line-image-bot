@@ -1,3 +1,12 @@
+# 2026.05.04.2
+
+- Windows Launcher 會在安裝依賴前檢查 Git；找不到 Git 時會自動下載最新版 Git for Windows 安裝程式並開啟，避免 `pip install -r requirements.txt` 因 `Cannot find command 'git'` 失敗。
+- Python 與 Git 安裝檔用完後會自動刪除，避免第一次啟動後殘留安裝主程式。
+- 打包腳本改為同時產生 CLI 與 GUI 兩個 launcher，檔名都會帶版本號：`ChinoBotLauncher-版本-cli.exe`、`ChinoBotLauncher-版本-gui.exe`。
+- 新增 GUI launcher，可查看啟動狀態、執行紀錄、顯示專案圖片，並直接讀寫 `.env` 後啟動 / 停止 Bot。
+- 新增預設頭貼與封面設定，啟動時可依 `.env` 的 `AUTO_UPDATE_PROFILE_MEDIA`、`PROFILE_PHOTO_PATH`、`PROFILE_COVER_PATH` 自動套用 `pic/Profile photo.png` 與 `pic/cover photo.png`。
+- Release icon 改用 `pic/icon.ico`；README 加入 `pic/github.png` 並更新 Windows launcher、GUI、Git 自動安裝與預設頭貼 / 封面說明。
+
 # 2026.05.04.1
 
 - 修正 Instagram 受限貼文或帳號解析失敗時可能 fallback 抓到登入頁 HTML，導致 Bot 傳出奇怪圖片或雜訊提示的問題。
