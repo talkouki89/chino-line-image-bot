@@ -1,5 +1,7 @@
 # Chino LINE Image Search Bot
 
+![Chino LINE Image Search Bot](pic/github.png)
+
 這是一個 Python LINE Bot，主要提供 LINE 群組/聊天室內的圖片反搜、影片下載、標籤管理與 Flex Message 回覆功能。
 
 ## 風險提醒
@@ -59,9 +61,12 @@
 ├── CHRLINE/             # CHRLINE-Patch client
 ├── CHRLINE-Thrift/      # CHRLINE-Thrift definitions
 ├── docs/                # 開發文件與 line_api_compat API 參考
-├── icon/                # Windows launcher 圖示
+├── pic/                 # README、Launcher UI、預設頭貼 / 封面與 Release icon
 ├── json/                # Bot 狀態資料
 ├── scripts/             # Windows / Linux 啟動與打包輔助腳本
+│   ├── windows_launcher.py # CLI launcher
+│   ├── windows_launcher_gui.py # GUI launcher
+│   └── build_windows_launcher.ps1 # 產生 CLI / GUI exe
 ├── tag/                 # 使用者標籤資料
 └── help/                # 舊文字版指令說明
 ```
@@ -114,6 +119,13 @@ Creator=
 
 # [選填] 後台通知聊天室/群組 ID。登入、重啟、錯誤通知會發到這裡。
 Dio_GID=
+
+# [選填] 啟動時是否自動套用預設頭貼與封面。預設 true。
+AUTO_UPDATE_PROFILE_MEDIA=true
+AUTO_UPDATE_PROFILE_PHOTO=true
+AUTO_UPDATE_PROFILE_COVER=true
+PROFILE_PHOTO_PATH=pic/Profile photo.png
+PROFILE_COVER_PATH=pic/cover photo.png
 
 # [選填] Bot 顯示時間使用的時區。預設台灣時間，可填 Asia/Taipei、UTC+8、UTC-5。
 BOT_TIMEZONE=Asia/Taipei
@@ -195,7 +207,12 @@ python main.py
 
 ### Windows Launcher
 
-Releases 會提供 `ChinoBotLauncher.exe`。可以把 exe 放在專案根目錄執行；如果只把 exe 放到空資料夾，它會自動下載 `chino-line-image-bot` 到同一個資料夾後再啟動。
+Releases 會提供兩個 Windows launcher，檔名會帶版本號：
+
+- `ChinoBotLauncher-版本-cli.exe`：原本的命令列版本，會顯示 CMD 視窗與完整輸出。
+- `ChinoBotLauncher-版本-gui.exe`：圖形介面版本，可查看 launcher 狀態、讀寫 `.env`、檢查環境、開啟專案資料夾，並啟動 / 停止 Bot。按下啟動後，Bot 主程式會另外開一個 CMD 視窗，LINE 登入驗證碼 / QR Code 與 Bot 詳細輸出會顯示在該視窗。
+
+可以把 exe 放在專案根目錄執行；如果只把 exe 放到空資料夾，它會自動下載 `chino-line-image-bot` 到同一個資料夾後再啟動。
 
 Launcher 會自動處理：
 
@@ -210,10 +227,12 @@ Launcher 會自動處理：
 
 如果電腦找不到 Python，Launcher 會自動下載 Python 3.11 Windows 安裝程式並開啟安裝視窗。安裝時請勾選 `Add python.exe to PATH`，完成後回到 Launcher 視窗按 Enter，Launcher 會繼續建立 `.venv` 與啟動 Bot。
 
+`requirements.txt` 內有 GitHub 來源套件，部分電腦沒有 Git 時 pip 會出現 `Cannot find command 'git'`。Launcher 會在安裝依賴前檢查 Git；找不到時會自動下載最新版 Git for Windows 安裝程式並開啟，安裝完成後回到 Launcher 視窗按 Enter 續跑。Python / Git 安裝檔用完後會自動刪除，避免留在使用者資料夾。
+
 檢查 launcher 是否能找到專案與 Python：
 
 ```powershell
-.\ChinoBotLauncher.exe --check
+.\ChinoBotLauncher-版本-cli.exe --check
 ```
 
 ### Linux
@@ -242,7 +261,12 @@ python -m pip install pyinstaller
 powershell -ExecutionPolicy Bypass -File scripts\build_windows_launcher.ps1
 ```
 
-產生的 `dist\ChinoBotLauncher.exe` 是啟動器；如果 `icon\1.ico` 存在，打包時會自動套用為 exe 圖示。
+產生的檔案會放在 `dist\`，並依照 `VERSION` 自動帶版本號：
+
+- `dist\ChinoBotLauncher-版本-cli.exe`
+- `dist\ChinoBotLauncher-版本-gui.exe`
+
+如果 `pic\icon.ico` 存在，打包時會自動套用為 exe 圖示。
 
 第一次啟動可能需要完成 LINE 登入流程。`main.py` 是長駐輪詢程式，測試語法時建議使用 `python -m py_compile main.py`，不要直接執行登入流程。
 

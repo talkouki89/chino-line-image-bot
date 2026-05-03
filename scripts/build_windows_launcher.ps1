@@ -1,11 +1,26 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
-$Icon = Join-Path $Root "icon\1.ico"
-$Args = @("--onefile", "--name", "ChinoBotLauncher")
+$Version = (Get-Content (Join-Path $Root "VERSION") -Raw).Trim()
+$Icon = Join-Path $Root "pic\icon.ico"
+$PicDir = Join-Path $Root "pic"
+
+$CliName = "ChinoBotLauncher-$Version-cli"
+$GuiName = "ChinoBotLauncher-$Version-gui"
+
+$CommonArgs = @("--onefile", "--clean")
 if (Test-Path $Icon) {
-    $Args += @("--icon", $Icon)
+    $CommonArgs += @("--icon", $Icon)
 }
-$Args += "scripts\windows_launcher.py"
-python -m PyInstaller @Args
-Write-Host "Done: dist\ChinoBotLauncher.exe"
+
+$CliArgs = @($CommonArgs + @("--name", $CliName, "scripts\windows_launcher.py"))
+python -m PyInstaller @CliArgs
+Write-Host "Done: dist\$CliName.exe"
+
+$GuiArgs = @($CommonArgs + @("--noconsole", "--name", $GuiName))
+if (Test-Path $PicDir) {
+    $GuiArgs += @("--add-data", "$PicDir;pic")
+}
+$GuiArgs += "scripts\windows_launcher_gui.py"
+python -m PyInstaller @GuiArgs
+Write-Host "Done: dist\$GuiName.exe"

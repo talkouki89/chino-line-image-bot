@@ -1,3 +1,20 @@
+# 2026.05.04.3
+
+- 修正 GUI launcher 直接攔截 Bot stdout 導致 LINE 登入流程卡在 `TALK INIT!`、驗證碼 / QR Code 不顯示的問題；現在 GUI 啟動 Bot 時會開獨立 CMD 視窗，登入驗證資訊會顯示在該視窗。
+- GUI launcher 左側圖片已移除，左側選單改成真正可點的快捷按鈕，可直接檢查環境、開啟專案資料夾、開啟 `.env` 與 README。
+- GUI 初始視窗與最小尺寸維持加大版，避免按鈕或內容被裁切；狀態紀錄區改為顯示 launcher 管理流程，Bot 詳細輸出保留在獨立 CMD。
+- Windows launcher 與 `main.py` 會強制使用 UTF-8 stdout/stderr，避免繁中 Windows cp950 環境遇到 emoji 或特殊字元時出現 `UnicodeEncodeError`。
+- README 補上 GUI 版登入驗證碼會出現在獨立 CMD 視窗，以及新版 CLI / GUI launcher 打包輸出檔名與 icon 路徑。
+
+# 2026.05.04.2
+
+- Windows Launcher 會在安裝依賴前檢查 Git；找不到 Git 時會自動下載最新版 Git for Windows 安裝程式並開啟，避免 `pip install -r requirements.txt` 因 `Cannot find command 'git'` 失敗。
+- Python 與 Git 安裝檔用完後會自動刪除，避免第一次啟動後殘留安裝主程式。
+- 打包腳本改為同時產生 CLI 與 GUI 兩個 launcher，檔名都會帶版本號：`ChinoBotLauncher-版本-cli.exe`、`ChinoBotLauncher-版本-gui.exe`。
+- 新增 GUI launcher，可查看啟動狀態、執行紀錄、顯示專案圖片，並直接讀寫 `.env` 後啟動 / 停止 Bot。
+- 新增預設頭貼與封面設定，啟動時可依 `.env` 的 `AUTO_UPDATE_PROFILE_MEDIA`、`PROFILE_PHOTO_PATH`、`PROFILE_COVER_PATH` 自動套用 `pic/Profile photo.png` 與 `pic/cover photo.png`。
+- Release icon 改用 `pic/icon.ico`；README 加入 `pic/github.png` 並更新 Windows launcher、GUI、Git 自動安裝與預設頭貼 / 封面說明。
+
 # 2026.05.04.1
 
 - 修正 Instagram 受限貼文或帳號解析失敗時可能 fallback 抓到登入頁 HTML，導致 Bot 傳出奇怪圖片或雜訊提示的問題。
