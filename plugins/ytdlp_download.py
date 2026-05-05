@@ -15,6 +15,7 @@ from yt_dlp.utils import DownloadError
 FEATURE_KEY = "ytdlp_download"
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 URL_RE = re.compile(r"https?://[^\s<>\"]+")
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
 MEDIA_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
@@ -26,6 +27,18 @@ META_TAG_RE = re.compile(r"<meta\b[^>]+>", re.IGNORECASE)
 META_PROP_RE = re.compile(r"\b(?:property|name)=[\"']([^\"']+)[\"']", re.IGNORECASE)
 META_CONTENT_RE = re.compile(r"\bcontent=[\"']([^\"']+)[\"']", re.IGNORECASE)
 MIN_DIRECT_BYTES = 8 * 1024
+YOUTUBE_AUTH_MARKERS = (
+    "sign in to confirm",
+    "not a bot",
+    "use --cookies-from-browser",
+    "use --cookies",
+)
+
+
+class MediaDownloadUserError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
 
 
 def handle(ctx):
@@ -65,6 +78,8 @@ def download_and_send_media(ctx, url, label="媒體", prefer_direct=False, use_d
         failed = send_files(ctx, files)
         if failed:
             ctx.reply(f"有 {failed} 個{label}檔案傳送失敗。")
+    except MediaDownloadUserError as exc:
+        ctx.reply(exc.message)
     except Exception as exc:
         ctx.log_error(exc)
         ctx.reply(f"{label}下載失敗，請確認網址是否可公開觀看，或稍後再試。")
@@ -74,6 +89,38 @@ def download_and_send_media(ctx, url, label="媒體", prefer_direct=False, use_d
 
 def download_media(url, output_dir, prefer_direct=False, use_douyin_wtf=False):
     load_dotenv(os.path.join(ROOT_DIR, ".env"), override=True)
+    ydl_opts = build_ytdlp_options(output_dir)
+    attempts = [("目前設定", ydl_opts)]
+    attempts.extend(auto_browser_cookie_attempts(ydl_opts))
+    youtube_auth_error = ""
+    retry_errors = []
+    for label, attempt_opts in attempts:
+        try:
+            return download_media_with_options(
+                url,
+                output_dir,
+                attempt_opts,
+                prefer_direct=prefer_direct,
+                use_douyin_wtf=use_douyin_wtf,
+            )
+        except DownloadError as exc:
+            clean_error = clean_yt_dlp_error(exc)
+            if is_youtube_auth_error(clean_error):
+                youtube_auth_error = clean_error
+                retry_errors.append(f"{label}: {clean_error}")
+                continue
+            raise
+        except Exception as exc:
+            if label != "目前設定":
+                retry_errors.append(f"{label}: {clean_yt_dlp_error(exc)}")
+                continue
+            raise
+    if youtube_auth_error:
+        raise MediaDownloadUserError(youtube_auth_message(retry_errors))
+    return []
+
+
+def build_ytdlp_options(output_dir):
     ydl_opts = {
         "format": "best[ext=mp4][acodec!=none][vcodec!=none]/best[acodec!=none][vcodec!=none]/best",
         "outtmpl": os.path.join(output_dir, "%(id)s-%(autonumber)03d.%(ext)s"),
@@ -81,12 +128,18 @@ def download_media(url, output_dir, prefer_direct=False, use_douyin_wtf=False):
         "quiet": True,
         "no_warnings": True,
         "noprogress": True,
+        "no_color": True,
         "windowsfilenames": True,
     }
     ydl_opts.update(load_cookie_options())
     cookies_file = os.getenv("YTDLP_COOKIES_FILE", "cookies.txt")
+    cookies_file = resolve_project_path(cookies_file)
     if cookies_file and os.path.exists(cookies_file):
         ydl_opts["cookiefile"] = cookies_file
+    return ydl_opts
+
+
+def download_media_with_options(url, output_dir, ydl_opts, prefer_direct=False, use_douyin_wtf=False):
     with YoutubeDL(ydl_opts) as ydl:
         if use_douyin_wtf:
             download_douyin_wtf_media(url, output_dir)
@@ -116,6 +169,17 @@ def download_media(url, output_dir, prefer_direct=False, use_douyin_wtf=False):
         return unique_existing_files(scan_output_files(output_dir))
 
 
+def resolve_project_path(path):
+    if not path:
+        return ""
+    path = os.path.expanduser(os.path.expandvars(path.strip()))
+    if not path:
+        return ""
+    if os.path.isabs(path):
+        return path
+    return os.path.join(ROOT_DIR, path)
+
+
 def load_cookie_options():
     browser = os.getenv("YTDLP_COOKIES_FROM_BROWSER", "").strip()
     if not browser:
@@ -124,6 +188,56 @@ def load_cookie_options():
     if not parts:
         return {}
     return {"cookiesfrombrowser": tuple(parts)}
+
+
+def auto_browser_cookie_attempts(base_opts):
+    if base_opts.get("cookiesfrombrowser"):
+        return []
+    if not env_bool("YTDLP_AUTO_BROWSER_COOKIES", True):
+        return []
+    raw = os.getenv("YTDLP_AUTO_BROWSER_COOKIE_SOURCES", "edge;chrome;firefox")
+    attempts = []
+    for value in [part.strip() for part in raw.split(";") if part.strip()]:
+        parts = [part.strip() for part in value.split(",") if part.strip()]
+        if not parts:
+            continue
+        opts = dict(base_opts)
+        opts.pop("cookiefile", None)
+        opts["cookiesfrombrowser"] = tuple(parts)
+        attempts.append((f"瀏覽器 cookie ({value})", opts))
+    return attempts
+
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on", "y"}
+
+
+def clean_yt_dlp_error(exc):
+    text = ANSI_RE.sub("", str(exc or ""))
+    return " ".join(text.split())
+
+
+def is_youtube_auth_error(error):
+    lowered = str(error or "").lower()
+    return "youtube" in lowered and any(marker in lowered for marker in YOUTUBE_AUTH_MARKERS)
+
+
+def youtube_auth_message(errors):
+    detail = ""
+    if errors:
+        detail = f"\n\n最後錯誤：{errors[-1][:300]}"
+    return (
+        "YouTube 要求登入驗證，yt-dlp 不能用公開模式下載這個影片。\n"
+        "請先在同一台電腦的 Edge/Chrome 登入 YouTube，再把 `.env` 設成：\n"
+        "YTDLP_COOKIES_FROM_BROWSER=edge\n\n"
+        "如果你用 Chrome 就填：\n"
+        "YTDLP_COOKIES_FROM_BROWSER=chrome\n\n"
+        "或匯出 YouTube cookies 到 `cookies.txt`，並確認 `YTDLP_COOKIES_FILE=cookies.txt`。"
+        f"{detail}"
+    )
 
 
 def collect_downloaded_files(info):
