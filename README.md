@@ -61,7 +61,7 @@
 ├── CHRLINE/             # CHRLINE-Patch client
 ├── CHRLINE-Thrift/      # CHRLINE-Thrift definitions
 ├── docs/                # 開發文件與 line_api_compat API 參考
-├── pic/                 # README、Launcher UI、預設頭貼 / 封面與 Release icon
+├── pic/                 # README、GitHub 社群預覽、Launcher UI、預設頭貼 / 封面與 Release icon
 ├── json/                # Bot 狀態資料
 ├── scripts/             # Windows / Linux 啟動與打包輔助腳本
 │   ├── windows_launcher.py # CLI launcher
@@ -177,6 +177,7 @@ LINE 非官方登入與自動化操作本身就有風控風險，`blocked user c
 
 - `YTDLP_COOKIES_FILE` 是 yt-dlp 的選填 cookie 檔路徑；檔案存在才會使用。
 - `YTDLP_COOKIES_FROM_BROWSER` 可讓 yt-dlp 讀取瀏覽器 cookie，例如 `chrome`、`edge`、`firefox`。下載需要登入或年齡限制內容時建議先填這個。
+- `YTDLP_AUTO_BROWSER_COOKIES` 預設 `true`。YouTube 回覆 `Sign in to confirm you’re not a bot` 時，會自動依 `YTDLP_AUTO_BROWSER_COOKIE_SOURCES` 嘗試讀 Edge、Chrome、Firefox cookies；如果瀏覽器尚未登入 YouTube，仍需要先登入或手動提供 `cookies.txt`。
 - `YTDLP_COOKIE` 可直接貼 cookie 字串，IG / TikTok 圖片 fallback 解析時會帶上。
 - `INSTALOADER_SESSION_USER` 可讓 Instagram 下載使用本機 Instaloader session；需要先用 `instaloader -l 使用者名稱` 建立。
 - `DOUYIN_WTF_API_BASE` 是 TikTok 圖片解析 API，預設使用 `https://douyin.wtf`，也可以改成自己部署的服務。

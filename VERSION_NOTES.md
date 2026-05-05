@@ -1,3 +1,10 @@
+# 2026.05.05.1
+
+- 修正 YouTube 下載遇到 `Sign in to confirm you’re not a bot` 時只回傳 yt-dlp 原始錯誤的問題；現在會偵測 bot 驗證錯誤並自動嘗試瀏覽器 cookies。
+- 新增 `YTDLP_AUTO_BROWSER_COOKIES` 與 `YTDLP_AUTO_BROWSER_COOKIE_SOURCES`，預設依序嘗試 Edge、Chrome、Firefox cookies；即使已有 `cookies.txt`，YouTube 驗證失敗後也會再嘗試瀏覽器 cookies。
+- yt-dlp 錯誤回覆會移除 ANSI 顏色碼，並提示使用者登入瀏覽器、設定 `YTDLP_COOKIES_FROM_BROWSER` 或提供 `cookies.txt`。
+- README 與 `.env.example` 補上 YouTube bot 驗證與自動 cookie 重試設定；`pic/Social preview.png` 已加入專案作為 GitHub 社群預覽素材。
+
 # 2026.05.04.3
 
 - 修正 GUI launcher 直接攔截 Bot stdout 導致 LINE 登入流程卡在 `TALK INIT!`、驗證碼 / QR Code 不顯示的問題；現在 GUI 啟動 Bot 時會開獨立 CMD 視窗，登入驗證資訊會顯示在該視窗。
