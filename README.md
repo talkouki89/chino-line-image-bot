@@ -192,6 +192,8 @@ Instagram 貼文如果來自受限帳號、私人帳號、需要登入或被 Ins
 - 影片平台：`yt:URL` / `回覆搜yt` 使用 yt-dlp 下載 YouTube 或 yt-dlp 支援的影片網址；`fb:URL` / `回覆搜fb` 下載 Facebook 影片；`ph:URL` / `回覆搜ph` 下載 Pornhub 影片。
 - 社群圖片 / 影片：`ig:URL` / `回覆搜ig` 下載 Instagram 媒體；`tk:URL` 下載 TikTok 圖片或影片。
 
+上述媒體下載指令與 `回覆搜x` 不區分大小寫，`YT:`、`Ig:`、`回覆搜X` 這類寫法也會正常觸發。
+
 下載結果如果包含多張圖片，Bot 會優先用 `uploadMultipleImageToTalk` 成組傳送；影片仍依 LINE API 限制逐個檔案傳送。私訊遇到 E2EE/Letter Sealing plain mode 或金鑰缺失時，媒體可能無法傳送，Bot 會回覆提示；X/Twitter 下載會補上可直接開啟的媒體網址。
 
 ## 啟動
@@ -387,6 +389,9 @@ def handle(ctx):
 - `r18色圖`：取得 R18 隨機圖。
 - `r18無ai`：取得排除 AI 標籤的 R18 隨機圖。
 - `tag色圖 標籤`：依指定標籤抽圖，會自動處理繁簡轉換。
+
+抽圖結果的「是否AI」會依 Lolicon API 的 `aiType` 顯示為 `否`、`未知` 或 `是`；抽圖、下載、`ren`、`speedtest`、`mid:`、`Contact @人` 這些指令都不區分大小寫。
+
 - `群發 內容`：管理員建立群發預覽。
 - `確認群發` / `取消群發` / `群發狀態`：管理員確認、取消或查看群發進度。
 - `n:數字`：解析 nHentai 作品資訊。

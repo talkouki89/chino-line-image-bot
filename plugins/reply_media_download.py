@@ -29,9 +29,14 @@ COMMANDS = {
 
 
 def handle(ctx):
-    if ctx.cmd not in COMMANDS:
+    cmd = normalized_command(ctx.cmd)
+    if cmd not in COMMANDS:
         return False
-    return handle_reply_download(ctx, COMMANDS[ctx.cmd])
+    return handle_reply_download(ctx, COMMANDS[cmd])
+
+
+def normalized_command(value):
+    return str(value or "").strip().lower()
 
 
 def handle_reply_download(ctx, config):

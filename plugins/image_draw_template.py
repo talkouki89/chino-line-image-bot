@@ -88,17 +88,22 @@ CHARACTER_TAGS = [
 
 
 def handle(ctx):
-    if ctx.cmd.strip() in {"抽圖", "抽圖片", "抽色圖"}:
+    cmd = normalized_command(ctx.cmd)
+    if cmd in {"抽圖", "抽圖片", "抽色圖"}:
         ctx.send_template(ctx.to, build_draw_template())
         return True
-    if ctx.cmd in RANDOM_IMAGE_COMMANDS:
+    if cmd in RANDOM_IMAGE_COMMANDS:
         if not check_lolicon_cooldown(ctx):
             return True
-        r18, exclude_ai = RANDOM_IMAGE_COMMANDS[ctx.cmd]
+        r18, exclude_ai = RANDOM_IMAGE_COMMANDS[cmd]
         return handle_random_lolicon(ctx, r18=r18, exclude_ai=exclude_ai)
-    if ctx.cmd.startswith(TAG_IMAGE_PREFIXES):
+    if cmd.startswith(TAG_IMAGE_PREFIXES):
         return handle_lolicon_tags(ctx)
     return False
+
+
+def normalized_command(value):
+    return str(value or "").strip().lower()
 
 
 def check_lolicon_cooldown(ctx):
@@ -211,9 +216,16 @@ def send_lolicon_result(ctx, data, label):
 
 def format_ai_flag(ai_type):
     try:
-        return "否" if int(ai_type or 0) == 0 else "是"
+        value = int(ai_type or 0)
     except (TypeError, ValueError):
-        return "否" if not ai_type else "是"
+        return "未知" if ai_type else "否"
+    if value == 0:
+        return "否"
+    if value == 1:
+        return "未知"
+    if value == 2:
+        return "是"
+    return "未知"
 
 
 def format_bool_flag(value):

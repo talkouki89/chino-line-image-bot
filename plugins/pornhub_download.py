@@ -5,7 +5,7 @@ FEATURE_KEY = "pornhub_download"
 
 
 def handle(ctx):
-    if not ctx.cmd.startswith("ph:"):
+    if not normalized_command(ctx.cmd).startswith("ph:"):
         return False
     url = extract_url(ctx.text.split(":", 1)[1] if ":" in ctx.text else "")
     if not url:
@@ -16,3 +16,7 @@ def handle(ctx):
         return True
     send_ytdlp_media_async(ctx, url, label="Pornhub 影片")
     return True
+
+
+def normalized_command(value):
+    return str(value or "").strip().lower()
