@@ -11,20 +11,25 @@ FALLBACK_IMAGE = "https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_caf
 
 
 def handle(ctx):
-    if ctx.cmd in {"speedtest", "測速"}:
+    cmd = normalized_command(ctx.cmd)
+    if cmd in {"speedtest", "測速"}:
         if not ctx.is_admin:
             return True
         threading.Thread(target=run_speedtest, args=(ctx,), daemon=True).start()
         return True
-    if ctx.cmd.startswith("mid:"):
+    if cmd.startswith("mid:"):
         if not ctx.is_admin:
             return True
         return handle_mid_lookup(ctx)
-    if ctx.cmd.startswith("contact "):
+    if cmd.startswith("contact "):
         if not ctx.is_admin:
             return True
         return handle_contact_mention(ctx)
     return False
+
+
+def normalized_command(value):
+    return str(value or "").strip().lower()
 
 
 def handle_mid_lookup(ctx):

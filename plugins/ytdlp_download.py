@@ -42,9 +42,13 @@ class MediaDownloadUserError(Exception):
 
 
 def handle(ctx):
-    if ctx.cmd.startswith("yt:"):
+    if normalized_command(ctx.cmd).startswith("yt:"):
         return handle_ytdlp(ctx)
     return False
+
+
+def normalized_command(value):
+    return str(value or "").strip().lower()
 
 
 def handle_ytdlp(ctx):

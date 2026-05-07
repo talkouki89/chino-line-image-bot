@@ -46,7 +46,7 @@ ACCESS_LIMIT_MARKERS = (
 
 
 def handle(ctx):
-    if not ctx.cmd.startswith("ig:"):
+    if not normalized_command(ctx.cmd).startswith("ig:"):
         return False
     url = extract_url(ctx.text.split(":", 1)[1] if ":" in ctx.text else "")
     if not url:
@@ -57,6 +57,10 @@ def handle(ctx):
         return True
     send_instagram_async(ctx, url)
     return True
+
+
+def normalized_command(value):
+    return str(value or "").strip().lower()
 
 
 def send_instagram_async(ctx, url):

@@ -5,12 +5,16 @@ FEATURE_KEY = "runtime_tools"
 
 
 def handle(ctx):
-    if ctx.cmd != "ren":
+    if normalized_command(ctx.cmd) != "ren":
         return False
     started_at = getattr(ctx, "started_at", None)
     elapsed = max(0, int(time.time() - started_at)) if started_at else 0
     ctx.send_template(ctx.to, build_runtime_template(elapsed))
     return True
+
+
+def normalized_command(value):
+    return str(value or "").strip().lower()
 
 
 def build_runtime_template(seconds):
